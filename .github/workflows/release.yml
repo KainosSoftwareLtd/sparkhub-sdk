@@ -25,10 +25,14 @@ jobs:
       - name: Install (workspaces)
         run: npm ci
 
-      # Build first — @sparkhub/react's type-check needs @sparkhub/sdk's
-      # dist/ to resolve cross-workspace imports.
-      - name: Build (all workspaces)
-        run: npm run build
+      # Build sdk first — @sparkhub/react imports @sparkhub/sdk's dist/
+      # types for its own tsc to resolve, and npm workspaces builds in
+      # alphabetical order (react before sdk) which fails without this.
+      - name: Build @sparkhub/sdk
+        run: npm -w @sparkhub/sdk run build
+
+      - name: Build @sparkhub/react
+        run: npm -w @sparkhub/react run build
 
       - name: Type check (all workspaces)
         run: npm run type-check
