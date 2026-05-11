@@ -8,12 +8,18 @@
 import type {
   Connection,
   PartnerAppMe,
+  RaasRequest,
+  RaasResponse,
+  SoapRequest,
+  SoapResponse,
   SparkhubClientOptions,
   SparkhubError,
   StartConnectRedirectOptions,
   Tenant,
   TokenRefreshEvent,
   TokenResponse,
+  WqlRequest,
+  WqlResponse,
 } from './types.js';
 import { generatePkcePair, generateRandomBase64Url } from './pkce.js';
 import {
@@ -280,7 +286,45 @@ class SparkhubClient {
       window.history.replaceState({}, '', cleanUrl.toString());
       return tenantId;
     },
+
+    /**
+     * Execute a Workday SOAP operation against a tenant. SparkHub injects
+     * its stored connection — partner never sees Workday credentials.
+     *
+     * Requires `partner-app:tenants:execute` scope on the active token.
+     * Throws `SparkhubError` on transport/auth failure; resolves with
+     * `{ ok: false, error, error_description }` on Workday-side error.
+     */
+    soap: async (tenantId: string, body: SoapRequest): Promise<SoapResponse> => {
+      return this.runRunner<SoapResponse>(`/api/partner-app/tenants/${encodeURIComponent(tenantId)}/soap`, body, 'soap');
+    },
+
+    /** Execute a Workday RAAS report. See `.soap()` for auth + error semantics. */
+    raas: async (tenantId: string, body: RaasRequest): Promise<RaasResponse> => {
+      return this.runRunner<RaasResponse>(`/api/partner-app/tenants/${encodeURIComponent(tenantId)}/raas`, body, 'raas');
+    },
+
+    /** Execute a Workday WQL query. See `.soap()` for auth + error semantics. */
+    wql: async (tenantId: string, body: WqlRequest): Promise<WqlResponse> => {
+      return this.runRunner<WqlResponse>(`/api/partner-app/tenants/${encodeURIComponent(tenantId)}/wql`, body, 'wql');
+    },
   };
+
+  private async runRunner<T>(path: string, body: unknown, label: string): Promise<T> {
+    const r = await this.fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      throw asSparkhubError(
+        `${label}_run_failed`,
+        `tenants.${label}() returned ${r.status}`,
+        r.status,
+      );
+    }
+    return (await r.json()) as T;
+  }
 
   async logout(): Promise<void> {
     const record = this.session.read();

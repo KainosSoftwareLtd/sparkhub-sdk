@@ -21,6 +21,10 @@ export { createSparkhubClient, type SparkhubClient } from './client.js';
 export type {
   Connection,
   PartnerAppMe,
+  RaasRequest,
+  RaasResponse,
+  SoapRequest,
+  SoapResponse,
   SparkhubClientOptions,
   SparkhubError,
   StartConnectRedirectOptions,
@@ -29,4 +33,6 @@ export type {
   TokenRefreshEvent,
   TokenRefreshReason,
   TokenResponse,
+  WqlRequest,
+  WqlResponse,
 } from './types.js';

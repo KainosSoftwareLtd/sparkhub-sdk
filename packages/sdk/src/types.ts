@@ -155,3 +155,68 @@ export interface StartConnectRedirectOptions {
   /** Absolute URL to return to after the connection ceremony completes (success or failure). */
   returnTo: string;
 }
+
+// ---------- Workday execution runners (cluster C) ----------
+// Field names mirror SparkHub's internal utility shapes 1:1.
+
+export interface SoapRequest {
+  /** Workday web service code (e.g. "Human_Resources"). */
+  webservice: string;
+  /** Operation name (e.g. "Get_Workers"). */
+  operation: string;
+  /** Workday API version (e.g. "v44.2"). */
+  version: string;
+  /** Structured payload — server builds the SOAP envelope. Mutually exclusive with `xmlRequest`. */
+  data?: Record<string, unknown>;
+  /** Pre-built SOAP body XML. Mutually exclusive with `data`. */
+  xmlRequest?: string;
+  /** Include Workday_Common_Header. Default true. */
+  includeCommonHeader?: boolean;
+  /** `json` (default) or `xml`. */
+  responseFormat?: 'json' | 'xml';
+}
+
+export interface SoapResponse {
+  ok: boolean;
+  durationMs: number;
+  response: unknown;
+  statusCode?: number;
+  error?: string;
+  error_description?: string;
+}
+
+export interface RaasRequest {
+  /** Either `{owner}/{name}` or a full Workday RAAS URL. Server resolves serviceHost + tenant from the SparkHub connection. */
+  reportUrl: string;
+  /** Default `json`. */
+  format?: 'json' | 'xml' | 'csv';
+  /** Prompt parameters. */
+  parameters?: Record<string, string>;
+}
+
+export interface RaasResponse {
+  ok: boolean;
+  durationMs: number;
+  data: unknown;
+  statusCode?: number;
+  error?: string;
+  error_description?: string;
+}
+
+export interface WqlRequest {
+  query: string;
+  /** Default 100, max 1000. */
+  limit?: number;
+  /** For paginated reads. */
+  offset?: number;
+}
+
+export interface WqlResponse {
+  ok: boolean;
+  durationMs: number;
+  rows: unknown[];
+  totalRows: number | null;
+  statusCode?: number;
+  error?: string;
+  error_description?: string;
+}
