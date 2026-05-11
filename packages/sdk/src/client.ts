@@ -6,11 +6,20 @@
  */
 
 import type {
+  Connection,
   PartnerAppMe,
+  RaasRequest,
+  RaasResponse,
+  SoapRequest,
+  SoapResponse,
   SparkhubClientOptions,
   SparkhubError,
+  StartConnectRedirectOptions,
+  Tenant,
   TokenRefreshEvent,
   TokenResponse,
+  WqlRequest,
+  WqlResponse,
 } from './types.js';
 import { generatePkcePair, generateRandomBase64Url } from './pkce.js';
 import {
@@ -20,6 +29,7 @@ import {
   type SessionRecord,
 } from './storage.js';
 import { RefreshCoordinator } from './coordinator.js';
+import { createDataApi, type DataApi } from './data-client.js';
 
 const DEFAULT_BASE = 'https://sparkhub.studio';
 const PKCE_TTL_MS = 5 * 60 * 1000;
@@ -35,6 +45,8 @@ class SparkhubClient {
   private readonly coordinator: RefreshCoordinator;
   private readonly onTokenRefresh: SparkhubClientOptions['onTokenRefresh'];
   private refreshInFlight: Promise<SessionRecord | null> | null = null;
+  /** Managed-storage API — `client.data.collection(name).find(...).run()` etc. */
+  readonly data: DataApi;
 
   constructor(opts: SparkhubClientOptions) {
     if (!opts.clientId.startsWith('papp_')) {
@@ -64,6 +76,10 @@ class SparkhubClient {
         this.fireOnTokenRefresh(fresh, 'peer');
       },
     });
+    this.data = createDataApi(
+      (path, init) => this.fetch(path, init),
+      (code, message, status) => asSparkhubError(code, message, status),
+    );
   }
 
   isAuthenticated(): boolean {
@@ -185,6 +201,136 @@ class SparkhubClient {
       throw asSparkhubError('me_failed', `me() returned ${r.status}`, r.status);
     }
     return (await r.json()) as PartnerAppMe;
+  }
+
+  /**
+   * Tenants surface (cluster B). Read-only access to the org's Workday
+   * tenants + per-user connection state. Connection management remains
+   * SparkHub-internal; use `startConnectRedirect()` to kick off the
+   * Workday OAuth ceremony on SparkHub side.
+   *
+   * All methods require the `partner-app:tenants:read` scope on the
+   * active token (server returns 403 `insufficient_scope` otherwise).
+   */
+  readonly tenants = {
+    list: async (): Promise<Tenant[]> => {
+      const r = await this.fetch('/api/partner-app/tenants');
+      if (!r.ok) {
+        throw asSparkhubError('tenants_list_failed', `tenants.list() returned ${r.status}`, r.status);
+      }
+      const body = (await r.json()) as { tenants: Tenant[] };
+      return body.tenants;
+    },
+
+    get: async (tenantId: string): Promise<Tenant> => {
+      const r = await this.fetch(`/api/partner-app/tenants/${encodeURIComponent(tenantId)}`);
+      if (!r.ok) {
+        const code = r.status === 404 ? 'tenant_not_found' : 'tenants_get_failed';
+        throw asSparkhubError(code, `tenants.get() returned ${r.status}`, r.status);
+      }
+      const body = (await r.json()) as { tenant: Tenant };
+      return body.tenant;
+    },
+
+    connections: async (tenantId: string): Promise<Connection[]> => {
+      const r = await this.fetch(
+        `/api/partner-app/tenants/${encodeURIComponent(tenantId)}/connections`,
+      );
+      if (!r.ok) {
+        const code = r.status === 404 ? 'tenant_not_found' : 'tenants_connections_failed';
+        throw asSparkhubError(
+          code,
+          `tenants.connections() returned ${r.status}`,
+          r.status,
+        );
+      }
+      const body = (await r.json()) as { connections: Connection[] };
+      return body.connections;
+    },
+
+    /**
+     * Navigate the browser to SparkHub's connection-create page for the
+     * given tenant. SparkHub completes the Workday OAuth ceremony, stores
+     * tokens, and redirects back to `opts.returnTo` with
+     * `?reconnected=1&tenantId=...` appended. Never returns.
+     */
+    startConnectRedirect: (tenantId: string, opts: StartConnectRedirectOptions): never => {
+      const url = new URL(`${this.base}/tenants/${encodeURIComponent(tenantId)}/connect`);
+      url.searchParams.set('return_to', opts.returnTo);
+      url.searchParams.set('app', this.clientId);
+      window.location.assign(url.toString());
+      // assign() never returns; cast for TS callers
+      throw new Error('unreachable: window.location.assign did not navigate');
+    },
+
+    /**
+     * Detect a return-from-SparkHub redirect on the current URL. If the
+     * current URL has `?reconnected=1&tenantId=<id>` query params (set by
+     * SparkHub at the end of the connection-create ceremony), strips them
+     * via `history.replaceState` and returns the reconnected tenantId.
+     * Returns `null` otherwise.
+     *
+     * Call this on initial mount in your app. Use the returned tenantId
+     * to trigger a refresh of your tenant list / panel.
+     *
+     * @example
+     * ```ts
+     * useEffect(() => {
+     *   const id = client.tenants.consumeConnectionReturn();
+     *   if (id) refreshTenants();
+     * }, []);
+     * ```
+     */
+    consumeConnectionReturn: (): string | null => {
+      if (typeof window === 'undefined') return null;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reconnected') !== '1') return null;
+      const tenantId = params.get('tenantId');
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('reconnected');
+      cleanUrl.searchParams.delete('tenantId');
+      cleanUrl.searchParams.delete('connect_error');
+      window.history.replaceState({}, '', cleanUrl.toString());
+      return tenantId;
+    },
+
+    /**
+     * Execute a Workday SOAP operation against a tenant. SparkHub injects
+     * its stored connection — partner never sees Workday credentials.
+     *
+     * Requires `partner-app:tenants:execute` scope on the active token.
+     * Throws `SparkhubError` on transport/auth failure; resolves with
+     * `{ ok: false, error, error_description }` on Workday-side error.
+     */
+    soap: async (tenantId: string, body: SoapRequest): Promise<SoapResponse> => {
+      return this.runRunner<SoapResponse>(`/api/partner-app/tenants/${encodeURIComponent(tenantId)}/soap`, body, 'soap');
+    },
+
+    /** Execute a Workday RAAS report. See `.soap()` for auth + error semantics. */
+    raas: async (tenantId: string, body: RaasRequest): Promise<RaasResponse> => {
+      return this.runRunner<RaasResponse>(`/api/partner-app/tenants/${encodeURIComponent(tenantId)}/raas`, body, 'raas');
+    },
+
+    /** Execute a Workday WQL query. See `.soap()` for auth + error semantics. */
+    wql: async (tenantId: string, body: WqlRequest): Promise<WqlResponse> => {
+      return this.runRunner<WqlResponse>(`/api/partner-app/tenants/${encodeURIComponent(tenantId)}/wql`, body, 'wql');
+    },
+  };
+
+  private async runRunner<T>(path: string, body: unknown, label: string): Promise<T> {
+    const r = await this.fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      throw asSparkhubError(
+        `${label}_run_failed`,
+        `tenants.${label}() returned ${r.status}`,
+        r.status,
+      );
+    }
+    return (await r.json()) as T;
   }
 
   async logout(): Promise<void> {

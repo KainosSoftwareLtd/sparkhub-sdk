@@ -1,59 +1,23 @@
 {
-  "name": "@sparkhub/sdk",
-  "version": "0.2.0",
-  "description": "OAuth client library for browser-based partner apps on the SparkHub platform.",
+  "name": "sparkhub-sdk-monorepo",
+  "private": true,
+  "description": "Workspaces root for @sparkhub/sdk + @sparkhub/react. The published packages live under packages/.",
   "license": "MIT",
-  "type": "module",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist",
-    "src",
-    "!src/**/*.test.ts",
-    "README.md",
-    "LICENSE"
+  "workspaces": [
+    "packages/*",
+    "examples/minimal-react"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "type-check": "tsc -p tsconfig.json --noEmit",
-    "clean": "rm -rf dist",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "prepublishOnly": "npm run clean && npm run build"
-  },
-  "keywords": [
-    "sparkhub",
-    "oauth",
-    "pkce",
-    "partner-app",
-    "browser-sdk"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
-  "sideEffects": false,
-  "publishConfig": {
-    "access": "public"
+    "build": "npm run build --workspaces --if-present",
+    "type-check": "npm run type-check --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/KainosSoftwareLtd/sparkhub-sdk.git"
   },
-  "homepage": "https://github.com/KainosSoftwareLtd/sparkhub-sdk#readme",
-  "bugs": {
-    "url": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/issues"
-  },
-  "devDependencies": {
-    "@vitest/coverage-v8": "^2.1.0",
-    "jsdom": "^25.0.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+  "engines": {
+    "node": ">=18"
   }
 }
