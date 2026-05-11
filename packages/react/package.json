@@ -1,0 +1,63 @@
+{
+  "name": "@sparkhub/react",
+  "version": "0.2.0",
+  "description": "React bindings for @sparkhub/sdk — Provider, hooks, and components for SparkHub partner apps.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "sparkhub",
+    "react",
+    "oauth",
+    "partner-app"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KainosSoftwareLtd/sparkhub-sdk.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/tree/main/packages/react#readme",
+  "bugs": {
+    "url": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/issues"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "@sparkhub/sdk": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}

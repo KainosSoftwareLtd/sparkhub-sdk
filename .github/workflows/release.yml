@@ -22,39 +22,48 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install
+      - name: Install (workspaces)
         run: npm ci
 
-      - name: Type check
+      - name: Type check (all workspaces)
         run: npm run type-check
 
-      - name: Test
+      - name: Test (all workspaces)
         run: npm test
 
-      - name: Build
+      - name: Build (all workspaces)
         run: npm run build
 
-      - name: Pack tarball
+      - name: Verify all package versions match tag
+        run: |
+          TAG_VERSION="${TAG_REF#v}"
+          for pkg in packages/*/package.json; do
+            PKG_NAME=$(node -p "require('./${pkg}').name")
+            PKG_VERSION=$(node -p "require('./${pkg}').version")
+            if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+              echo "::error::${PKG_NAME} version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+              exit 1
+            fi
+            echo "OK: ${PKG_NAME}@${PKG_VERSION}"
+          done
+
+      - name: Pack tarballs
         id: pack
         run: |
-          npm pack --pack-destination .
-          TARBALL=$(ls sparkhub-sdk-*.tgz | head -n1)
-          printf 'tarball=%s\n' "$TARBALL" >> "$GITHUB_OUTPUT"
-
-      - name: Verify package version matches tag
-        run: |
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          TAG_VERSION="${TAG_REF#v}"
-          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::package.json version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
-            exit 1
-          fi
+          mkdir -p .release-artifacts
+          for pkg in packages/*/; do
+            (cd "$pkg" && npm pack --pack-destination ../../.release-artifacts/)
+          done
+          ls -la .release-artifacts/
+          ARTIFACTS=$(ls .release-artifacts/*.tgz | tr '\n' ' ')
+          printf 'artifacts=%s\n' "$ARTIFACTS" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARBALL: ${{ steps.pack.outputs.tarball }}
+          ARTIFACTS: ${{ steps.pack.outputs.artifacts }}
         run: |
-          gh release create "$TAG_REF" "$TARBALL" \
+          # shellcheck disable=SC2086
+          gh release create "$TAG_REF" $ARTIFACTS \
             --title "$TAG_REF" \
             --generate-notes
