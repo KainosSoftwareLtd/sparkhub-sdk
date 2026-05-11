@@ -4,7 +4,8 @@
   "description": "Workspaces root for @sparkhub/sdk + @sparkhub/react. The published packages live under packages/.",
   "license": "MIT",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/minimal-react"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",

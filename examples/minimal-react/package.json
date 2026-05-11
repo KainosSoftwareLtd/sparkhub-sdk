@@ -9,7 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@sparkhub/sdk": "file:../..",
+    "@sparkhub/sdk": "*",
+    "@sparkhub/react": "*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

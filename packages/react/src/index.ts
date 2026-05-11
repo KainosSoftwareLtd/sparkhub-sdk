@@ -1,8 +1,8 @@
 /**
  * `@sparkhub/react` — React bindings for `@sparkhub/sdk`.
  *
- * Placeholder. Real exports land in task #10 (Provider + useSparkhub() moved
- * over from examples/minimal-react) and task #12 (Tenants components).
+ * Provider + hook for partner apps. Future: tenant components (sidebar,
+ * panel) + data hooks land alongside cluster B of the M2 platform services.
  */
 
-export const __PLACEHOLDER__ = '@sparkhub/react 0.2.0 — see CHANGELOG for status';
+export { SparkhubProvider, useSparkhub } from './SparkhubProvider.js';

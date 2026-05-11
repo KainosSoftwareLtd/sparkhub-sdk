@@ -1,4 +1,4 @@
-import { useSparkhub } from './sparkhub-provider';
+import { useSparkhub } from '@sparkhub/react';
 
 export function App() {
   const { isAuthenticated, me, meError, isLoading, login, logout, refreshMe } = useSparkhub();

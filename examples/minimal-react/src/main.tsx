@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SparkhubProvider } from './sparkhub-provider';
+import { SparkhubProvider } from '@sparkhub/react';
 import { App } from './App';
 import './styles.css';
 

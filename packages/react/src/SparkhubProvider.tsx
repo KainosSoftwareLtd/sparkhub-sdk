@@ -1,9 +1,24 @@
 /**
- * Reusable React wrapper for `@sparkhub/sdk`.
+ * React Provider + `useSparkhub()` hook for SparkHub partner apps.
  *
- * Copy this file into your partner-app codebase as a starting point. The SDK
- * itself is framework-agnostic — this provider + hook lives in your app, not
- * in `@sparkhub/sdk`.
+ * Wraps `@sparkhub/sdk`'s `createSparkhubClient` with:
+ *   - Stable client instance for the Provider's lifetime
+ *   - Automatic OAuth callback handling on initial mount (detects `?code=...`
+ *     or `?error=...` in the URL and calls `client.handleCallback()`)
+ *   - `me` data fetched + refreshed when auth state changes
+ *   - State updates on cross-tab token refresh (via the SDK's `onTokenRefresh`
+ *     callback — partner can still supply their own; we wrap it).
+ *
+ * @example
+ * ```tsx
+ * <SparkhubProvider config={{
+ *   clientId: 'papp_...',
+ *   scopes: ['partner-app:read'],
+ *   redirectUri: window.location.origin + window.location.pathname,
+ * }}>
+ *   <App />
+ * </SparkhubProvider>
+ * ```
  */
 
 import {
