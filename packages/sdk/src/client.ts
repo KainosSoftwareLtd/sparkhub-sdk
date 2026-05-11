@@ -29,6 +29,7 @@ import {
   type SessionRecord,
 } from './storage.js';
 import { RefreshCoordinator } from './coordinator.js';
+import { createDataApi, type DataApi } from './data-client.js';
 
 const DEFAULT_BASE = 'https://sparkhub.studio';
 const PKCE_TTL_MS = 5 * 60 * 1000;
@@ -44,6 +45,8 @@ class SparkhubClient {
   private readonly coordinator: RefreshCoordinator;
   private readonly onTokenRefresh: SparkhubClientOptions['onTokenRefresh'];
   private refreshInFlight: Promise<SessionRecord | null> | null = null;
+  /** Managed-storage API — `client.data.collection(name).find(...).run()` etc. */
+  readonly data: DataApi;
 
   constructor(opts: SparkhubClientOptions) {
     if (!opts.clientId.startsWith('papp_')) {
@@ -73,6 +76,10 @@ class SparkhubClient {
         this.fireOnTokenRefresh(fresh, 'peer');
       },
     });
+    this.data = createDataApi(
+      (path, init) => this.fetch(path, init),
+      (code, message, status) => asSparkhubError(code, message, status),
+    );
   }
 
   isAuthenticated(): boolean {

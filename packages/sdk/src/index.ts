@@ -19,6 +19,18 @@
 
 export { createSparkhubClient, type SparkhubClient } from './client.js';
 export type {
+  DataApi,
+  DataCollection,
+  DataFilter,
+  DataProjection,
+  DataSort,
+  DataUpdate,
+  InsertOneResult,
+  InsertManyResult,
+  UpdateResult,
+  DeleteResult,
+} from './data-client.js';
+export type {
   Connection,
   PartnerAppMe,
   RaasRequest,
