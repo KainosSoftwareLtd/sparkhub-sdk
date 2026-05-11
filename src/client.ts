@@ -9,6 +9,7 @@ import type {
   PartnerAppMe,
   SparkhubClientOptions,
   SparkhubError,
+  TokenRefreshEvent,
   TokenResponse,
 } from './types.js';
 import { generatePkcePair, generateRandomBase64Url } from './pkce.js';
@@ -18,6 +19,7 @@ import {
   type PkceRecord,
   type SessionRecord,
 } from './storage.js';
+import { RefreshCoordinator } from './coordinator.js';
 
 const DEFAULT_BASE = 'https://sparkhub.studio';
 const PKCE_TTL_MS = 5 * 60 * 1000;
@@ -30,6 +32,8 @@ class SparkhubClient {
   private readonly org: string | undefined;
   private readonly session: SessionStore;
   private readonly pkce: PkceStore;
+  private readonly coordinator: RefreshCoordinator;
+  private readonly onTokenRefresh: SparkhubClientOptions['onTokenRefresh'];
   private refreshInFlight: Promise<SessionRecord | null> | null = null;
 
   constructor(opts: SparkhubClientOptions) {
@@ -50,6 +54,16 @@ class SparkhubClient {
     this.org = opts.org;
     this.session = new SessionStore(opts.storage ?? 'session');
     this.pkce = new PkceStore();
+    this.onTokenRefresh = opts.onTokenRefresh;
+    this.coordinator = new RefreshCoordinator({
+      clientId: this.clientId,
+      onPeerEvent: (event) => {
+        if (event.type !== 'refreshed') return;
+        const fresh = this.session.read();
+        if (!fresh) return;
+        this.fireOnTokenRefresh(fresh, 'peer');
+      },
+    });
   }
 
   isAuthenticated(): boolean {
@@ -125,6 +139,7 @@ class SparkhubClient {
     const record = sessionRecordFromTokens(this.clientId, tokens);
     this.session.write(record);
     this.pkce.clear();
+    this.coordinator.broadcast({ type: 'signed-in' });
 
     // Strip OAuth params from URL so the page can be bookmarked / refreshed
     const cleanUrl = new URL(window.location.href);
@@ -191,6 +206,7 @@ class SparkhubClient {
     }
     this.session.clear();
     this.pkce.clear();
+    this.coordinator.broadcast({ type: 'signed-out' });
   }
 
   // --- internal ---
@@ -223,25 +239,43 @@ class SparkhubClient {
 
     this.refreshInFlight = (async () => {
       try {
-        const record = this.session.read();
-        if (!record) return null;
-        if (record.refreshTokenExpiresAt <= Date.now()) return null;
+        // Snapshot the access token we know is dead — the one that triggered
+        // the 401 caller is retrying. Once we hold the cross-tab lock, we
+        // compare against this to detect "peer refreshed while I was waiting".
+        const beforeLock = this.session.read();
+        const staleAccessToken = beforeLock?.accessToken;
 
-        const response = await window.fetch(`${this.base}/oauth/token`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            grant_type: 'refresh_token',
-            refresh_token: record.refreshToken,
-            client_id: this.clientId,
-          }),
+        return await this.coordinator.withLock(async () => {
+          // Inside the lock — re-read storage. A peer tab may have already
+          // refreshed and written new tokens before we acquired the lock.
+          const current = this.session.read();
+          if (current && current.accessToken !== staleAccessToken) {
+            this.fireOnTokenRefresh(current, 'peer');
+            return current;
+          }
+
+          const record = current ?? beforeLock;
+          if (!record) return null;
+          if (record.refreshTokenExpiresAt <= Date.now()) return null;
+
+          const response = await window.fetch(`${this.base}/oauth/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              grant_type: 'refresh_token',
+              refresh_token: record.refreshToken,
+              client_id: this.clientId,
+            }),
+          });
+          if (!response.ok) return null;
+
+          const tokens = (await response.json()) as TokenResponse;
+          const next = sessionRecordFromTokens(this.clientId, tokens, record.scopes);
+          this.session.write(next);
+          this.fireOnTokenRefresh(next, 'local');
+          this.coordinator.broadcast({ type: 'refreshed' });
+          return next;
         });
-        if (!response.ok) return null;
-
-        const tokens = (await response.json()) as TokenResponse;
-        const next = sessionRecordFromTokens(this.clientId, tokens);
-        this.session.write(next);
-        return next;
       } catch {
         return null;
       } finally {
@@ -251,19 +285,47 @@ class SparkhubClient {
 
     return this.refreshInFlight;
   }
+
+  private fireOnTokenRefresh(record: SessionRecord, reason: 'local' | 'peer'): void {
+    if (!this.onTokenRefresh) return;
+    const event: TokenRefreshEvent = {
+      reason,
+      accessToken: record.accessToken,
+      accessTokenExpiresAt: record.accessTokenExpiresAt,
+      scopes: record.scopes,
+    };
+    try {
+      this.onTokenRefresh(event);
+    } catch {
+      // Errors in user-supplied callbacks must not break refresh
+    }
+  }
 }
 
-function sessionRecordFromTokens(clientId: string, tokens: TokenResponse): SessionRecord {
+const DEFAULT_REFRESH_TTL_SECONDS = 24 * 60 * 60;
+
+function sessionRecordFromTokens(
+  clientId: string,
+  tokens: TokenResponse,
+  fallbackScopes?: string[],
+): SessionRecord {
   const now = Date.now();
+  // The /oauth/token refresh response omits `scope`; carry the prior record's
+  // granted scopes forward via `fallbackScopes`. The initial code-exchange
+  // response always includes `scope`.
+  const scopes = tokens.scope
+    ? tokens.scope.split(' ').filter(Boolean)
+    : fallbackScopes ?? [];
+  // Server-returned refresh TTL when present (post server-side rollout of
+  // `refresh_expires_in`); otherwise fall back to the partner-app audience's
+  // configured fixed TTL of 24h.
+  const refreshTtlSeconds = tokens.refresh_expires_in ?? DEFAULT_REFRESH_TTL_SECONDS;
   return {
     accessToken: tokens.access_token,
     accessTokenExpiresAt: now + tokens.expires_in * 1000,
     refreshToken: tokens.refresh_token,
-    // Refresh TTL not returned by /oauth/token directly — the partner-app
-    // audience uses a fixed 24h window so we encode that here. If the server
-    // ever returns refresh_expires_in, prefer that.
-    refreshTokenExpiresAt: now + 24 * 60 * 60 * 1000,
-    scopes: tokens.scope.split(' ').filter(Boolean),
+    refreshTokenExpiresAt: now + refreshTtlSeconds * 1000,
+    scopes,
     clientId,
   };
 }

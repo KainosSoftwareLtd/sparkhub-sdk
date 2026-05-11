@@ -1,47 +1,58 @@
-# Minimal React example — placeholder
+# Minimal React example
 
-This folder is reserved for a React + Vite example showing how to wrap
-`@sparkhub/sdk` in a React hook.
+Vite + React reference implementation showing how to wrap [`@sparkhub/sdk`](../..) in a React provider + hook.
 
-It's not implemented in M1.2 — vanilla-html demo is enough for the v0
-release. The React hook pattern is straightforward:
+This example is **inside the SDK repo for reference**. To use it as a starting point for a real partner app, copy it out into its own repo (and replace `"@sparkhub/sdk": "file:../.."` in `package.json` with a release-tarball URL).
 
-```tsx
-// useSparkhub.ts
-import { useEffect, useState, useMemo } from 'react';
-import { createSparkhubClient, type SparkhubClient, type PartnerAppMe } from '@sparkhub/sdk';
+## What it shows
 
-const config = {
-  clientId: import.meta.env.VITE_SPARKHUB_CLIENT_ID,
-  scopes: ['partner-app:read'],
-  redirectUri: window.location.origin + '/auth/callback',
-};
+- `<SparkhubProvider>` — owns the `SparkhubClient` for the app's lifetime
+- `useSparkhub()` hook — exposes `{ client, isAuthenticated, me, login, logout, refreshMe, isLoading, meError }`
+- Automatic OAuth callback handling — the provider detects `?code=...` on initial mount and finishes the exchange
+- Token refresh observability — wires the SDK's `onTokenRefresh` callback to a `console.log`
+- Cross-tab refresh coordination — handled inside the SDK; nothing for the React layer to do
 
-let singleton: SparkhubClient | null = null;
-function getClient(): SparkhubClient {
-  if (!singleton) singleton = createSparkhubClient(config);
-  return singleton;
-}
+The provider + hook live in `src/sparkhub-provider.tsx`. **Copy that one file into your partner app** and you have a complete React integration.
 
-export function useSparkhub() {
-  const client = useMemo(getClient, []);
-  const [me, setMe] = useState<PartnerAppMe | null>(null);
-  const [authed, setAuthed] = useState<boolean>(client.isAuthenticated());
+## Run
 
-  useEffect(() => {
-    if (!authed) return;
-    client.me().then(setMe).catch(() => setMe(null));
-  }, [authed, client]);
+```bash
+npm install
+cp .env.example .env.local
+# edit .env.local — at minimum set VITE_SPARKHUB_CLIENT_ID
 
-  return {
-    client,
-    isAuthenticated: authed,
-    me,
-    login: () => client.authorize(),
-    logout: () => client.logout().then(() => setAuthed(false)),
-  };
-}
+npm run dev
+# Vite serves on http://localhost:5173
 ```
 
-Add a callback route at `/auth/callback` that calls `client.handleCallback()`
-on mount, then redirects back to your app's protected area.
+### Local-dev gotchas
+
+- Your registered partner app must have **Allow `localhost` in dev** checked. Without it, SparkHub rejects `http://localhost:5173/` as an invalid redirect URI.
+- Set `VITE_SPARKHUB_ORG=<orgcode>` in `.env.local` — SparkHub can't infer the org from `localhost`.
+- Open at `http://localhost:5173/` (not `http://<org>.localhost:5173/`).
+
+## Build for production
+
+```bash
+npm run build
+# dist/ contains the static SPA — deploy to Vercel, Netlify, S3, etc.
+```
+
+For a deployable production-shape demo (with Vercel deploy steps and `sparkhub.run` domain binding), see [`sparkhub-partner-app-demo`](https://github.com/KainosSoftwareLtd/sparkhub-partner-app-demo) — vanilla TS variant of the same flow.
+
+## File layout
+
+```
+.
+├── .env.example
+├── index.html
+├── package.json
+├── README.md
+├── src/
+│   ├── App.tsx                  # UI
+│   ├── main.tsx                 # bootstrap + provider config
+│   ├── sparkhub-provider.tsx    # provider + useSparkhub() hook (copy this)
+│   └── styles.css
+├── tsconfig.json
+└── vite.config.ts
+```

@@ -25,6 +25,30 @@ Additive changes (new optional options, new methods, new exports, new types) are
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-10
+
+### Added
+
+- **Cross-tab refresh coordination** via Web Locks + BroadcastChannel. Multiple tabs of the same partner app no longer race on token refresh — only one tab does the network rotation, peers wait at the lock and pick up the new tokens. Eliminates the previous failure mode where two tabs racing tripped server-side refresh-reuse-detection and revoked the chain. Falls back gracefully to per-tab refresh on browsers without Web Locks (Safari < 15.4).
+- **`onTokenRefresh` option** on `createSparkhubClient`. Fires after a successful refresh, both when this tab did the rotation (`reason: 'local'`) and when a peer tab did and we picked up the new tokens via cross-tab broadcast (`reason: 'peer'`). Useful for telemetry, mirroring the access token to a non-default storage layer, or driving a UI indicator. Errors thrown from this callback are swallowed.
+- **`TokenRefreshEvent` and `TokenRefreshReason` types** exported from the package root.
+
+### Changed
+
+- **`TokenResponse.scope` is now optional** (`string | undefined`). Aligns the type with reality — the `/oauth/token` refresh response omits `scope`, only the initial code-exchange response includes it. Refresh now correctly carries scopes forward from the previous session record. **Breaking** for direct consumers of the `TokenResponse` type, but the typed client API is unchanged.
+- **`TokenResponse.refresh_expires_in` is now read** (when the server returns it) instead of always assuming the 24h `refreshTokenFixedTtlSeconds` default. Server-side support for emitting this field is pending — until then, the SDK silently falls back to 24h. Forward-compatible: when the server starts emitting it, the SDK picks it up automatically.
+
+### Fixed
+
+- **`PartnerAppMe` type now matches the actual server response shape.** Previously declared `issuedAt`, `expiresAt`, `chainExpiresAt` as `number` (epoch ms) but the server returns them as ISO 8601 strings — partner code reading them as numbers got `NaN`. Now correctly typed as `string` (and `string | null` for `chainExpiresAt`). Added the missing `chainId: string` field. **Breaking** for any code that did arithmetic on these fields directly — switch to `Date.parse(me.expiresAt)`.
+
+### Internals
+
+- New `RefreshCoordinator` module (`src/coordinator.ts`). Internal — not exported.
+- **Vitest test suite** added with jsdom environment. 38 tests covering PKCE, storage, refresh coordination, client.fetch (bearer + 401 retry + dedupe + onTokenRefresh + scope carry-forward), and handleCallback (state validation, CSRF mismatch, PKCE TTL).
+- **CI gate** — release workflow now runs `npm test` before building the tarball; failing tests block the release.
+- **React example** — `examples/minimal-react/` is now a complete Vite + React app with a copy-pasteable `<SparkhubProvider>` + `useSparkhub()` hook.
+
 ## [0.1.0] - 2026-05-10
 
 Initial public release. Source extracted from the `KainosSoftwareLtd/SparkHub` monorepo (`packages/sparkhub-sdk`) into this dedicated repository for partner-facing distribution.

@@ -7,6 +7,23 @@
 
 export type StorageMode = 'session' | 'local';
 
+/**
+ * Reason a refresh event fired. `local` = this tab did the network refresh;
+ * `peer` = another tab in the same browser did it and we picked up the new
+ * tokens via cross-tab broadcast.
+ */
+export type TokenRefreshReason = 'local' | 'peer';
+
+export interface TokenRefreshEvent {
+  reason: TokenRefreshReason;
+  /** New access token (already stored). Same as `client.accessToken()` immediately after this fires. */
+  accessToken: string;
+  /** Wall-clock ms epoch when the access token expires. */
+  accessTokenExpiresAt: number;
+  /** Granted scopes for the new token (carried over from the previous record on refresh). */
+  scopes: string[];
+}
+
 export interface SparkhubClientOptions {
   /** Partner-app client ID issued by SparkHub at registration time. Always starts with `papp_`. */
   clientId: string;
@@ -26,26 +43,58 @@ export interface SparkhubClientOptions {
   org?: string;
   /** Token storage mode. `session` (default, cleared on tab close) or `local` (persists across sessions). */
   storage?: StorageMode;
+  /**
+   * Fired after a successful access-token refresh, both when this tab did
+   * the rotation (`reason: 'local'`) and when a peer tab did and we picked
+   * up the new tokens via cross-tab broadcast (`reason: 'peer'`).
+   *
+   * Useful for telemetry, mirroring the access token to a non-default
+   * storage layer, or driving a UI indicator. The handler runs after
+   * storage is updated, so `client.accessToken()` already returns the new
+   * value when this fires.
+   *
+   * Errors thrown from this callback are swallowed — they do NOT abort
+   * the refresh.
+   */
+  onTokenRefresh?: (event: TokenRefreshEvent) => void;
 }
 
 export interface PartnerAppMe {
   userId: string;
+  /** Slug-style org code from the JWT principal — what surfaces in URLs (`{org}.{ns}.sparkhub.run`). */
   organizationCode: string;
+  /** Mongo ObjectId of the org as a hex string. */
   organizationId: string;
+  /** Org role granted by the partner-app install (e.g. `org:admin`). */
   orgRole: string;
+  /** Granted scopes on the active access token. */
   scope: string[];
+  /** Partner-app client ID (`papp_*`). */
   clientId: string;
-  issuedAt: number;
-  expiresAt: number;
-  chainExpiresAt: number;
+  /** Refresh-chain ID (`chain_*`). Stable for the lifetime of the sign-in. */
+  chainId: string;
+  /** ISO 8601 timestamp — when the access token was issued. */
+  issuedAt: string;
+  /** ISO 8601 timestamp — when the access token expires. */
+  expiresAt: string;
+  /** ISO 8601 timestamp — when the refresh chain hits its wall-clock cap. `null` if the chain record is missing (rare). */
+  chainExpiresAt: string | null;
 }
 
 export interface TokenResponse {
   access_token: string;
   refresh_token: string;
   token_type: 'Bearer';
+  /** Access token TTL in seconds. */
   expires_in: number;
-  scope: string;
+  /**
+   * Refresh token TTL in seconds. May be omitted by older server versions
+   * — the SDK falls back to a hardcoded 24h assumption that matches the
+   * partner-app audience's `refreshTokenFixedTtlSeconds` config.
+   */
+  refresh_expires_in?: number;
+  /** Space-separated granted scopes. Returned on initial code exchange; may be omitted on refresh responses. */
+  scope?: string;
 }
 
 export interface SparkhubError extends Error {

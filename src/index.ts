@@ -23,5 +23,7 @@ export type {
   SparkhubClientOptions,
   SparkhubError,
   StorageMode,
+  TokenRefreshEvent,
+  TokenRefreshReason,
   TokenResponse,
 } from './types.js';

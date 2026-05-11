@@ -11,7 +11,7 @@ Hides the OAuth ceremony — PKCE, redirect, code exchange, refresh-on-401 — b
 While the SDK is in `0.x`, install from a tagged GitHub Release:
 
 ```bash
-npm i https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.1.0/sparkhub-sdk-0.1.0.tgz
+npm i https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.2.0/sparkhub-sdk-0.2.0.tgz
 ```
 
 (See [Install from a release](#install-from-a-release) below for `package.json` form and version pinning.)
@@ -82,11 +82,13 @@ createSparkhubClient({ ...config, storage: 'local' });
 ```
 Use `local` only if your UX needs persist-across-restart auth. Note the trade-off: a refresh token in `localStorage` lives until the chain wall-clock cap (24h for partner-app) regardless of tab lifecycle.
 
-## Multi-tab behavior (v0)
+## Multi-tab behavior
 
-Each tab refreshes independently. There's no `BroadcastChannel` coordination yet. Race window is small — refresh rotation has reuse-detection on the server, so two tabs racing causes the loser's chain to revoke and the SDK to redirect to `authorize()`. Net UX: maybe one extra sign-in over the lifetime of a multi-tab session.
+Tabs of the same partner app coordinate refresh via [Web Locks](https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API) and [BroadcastChannel](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel_API). When multiple tabs hit a 401 simultaneously, only one tab actually calls `/oauth/token`; peer tabs wait at the lock and pick up the rotated tokens from storage. This eliminates the previous failure mode where two tabs racing tripped the server's refresh-reuse-detection and revoked the chain.
 
-A future version will add `BroadcastChannel` + `Web Locks` (mirroring the pattern SparkHub's own auth-v2 uses).
+Browsers without Web Locks (Safari < 15.4) fall back to per-tab refresh — the SDK still works, but two-tab races against a brand-new partner-app installation might cost an occasional re-auth. Acceptable for evergreen-browser audiences.
+
+The `onTokenRefresh` callback fires on every successful rotation — `reason: 'local'` when this tab did the rotation, `reason: 'peer'` when we picked up tokens written by another tab.
 
 ## Configuration
 
@@ -97,6 +99,8 @@ A future version will add `BroadcastChannel` + `Web Locks` (mirroring the patter
 | `redirectUri` | required | Must match your app's allowed redirect URI patterns. |
 | `sparkhubBase` | `https://sparkhub.studio` | Override for staging/local-dev (`http://localhost:3000` or your kit-configured local hostname). |
 | `storage` | `'session'` | `'session'` (cleared on tab close) or `'local'` (persists). |
+| `org` | — | Org-code hint for the authorize URL. Required when the redirect URI is `localhost`-style; production redirects at `{org}.{ns}.sparkhub.run` derive it from the subdomain. |
+| `onTokenRefresh` | — | Optional callback fired after every successful access-token rotation. See *Multi-tab behavior* above. |
 
 ## Errors
 
@@ -137,7 +141,7 @@ Requires `crypto.subtle`, `fetch`, `URL`, `URLSearchParams`, `sessionStorage`/`l
 While the SDK is in `0.x`, releases are distributed as GitHub Release tarballs (npm publish comes later). Install a specific version directly:
 
 ```bash
-npm i https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.1.0/sparkhub-sdk-0.1.0.tgz
+npm i https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.2.0/sparkhub-sdk-0.2.0.tgz
 ```
 
 Or pin in `package.json`:
@@ -145,7 +149,7 @@ Or pin in `package.json`:
 ```json
 {
   "dependencies": {
-    "@sparkhub/sdk": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.1.0/sparkhub-sdk-0.1.0.tgz"
+    "@sparkhub/sdk": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.2.0/sparkhub-sdk-0.2.0.tgz"
   }
 }
 ```
