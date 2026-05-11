@@ -103,3 +103,55 @@ export interface SparkhubError extends Error {
   /** HTTP status from the failed response. */
   status?: number;
 }
+
+/**
+ * What partner apps see for a tenant.
+ *
+ * Subset of SparkHub's internal `WorkdayTenant` schema — credentials,
+ * federated-IdP config, color picker metadata, and audit fields stay
+ * SparkHub-internal.
+ */
+export interface Tenant {
+  /** SparkHub tenant identifier (MongoDB ObjectId as hex string). */
+  id: string;
+  /** Display name set by the org admin. */
+  name: string;
+  /** Optional description. */
+  description?: string;
+  /** Environment type (sandbox / impl / preview / production / other). */
+  type: string;
+  /** Tenant operational status — partners use this to gate "can I call against this?" */
+  status: string;
+  /** Workday host this tenant points at, e.g. `acme.workday.com`. */
+  host: string;
+  /** Optional UI color tag — partners can mirror SparkHub's color coding in their own UI. */
+  color?: string;
+}
+
+/**
+ * What partner apps see for a tenant's connection state.
+ */
+export interface Connection {
+  /** Connection record ID (opaque to partner). */
+  id: string;
+  /** Parent tenant ID. */
+  tenantId: string;
+  /** Auth method backing this connection. */
+  type: 'oauth' | 'username_password';
+  /** Connection liveness state. */
+  state: 'connected' | 'standby' | 'user_pwd' | 'disabled' | 'disconnected';
+  /** ISO 8601 — when SparkHub last verified this connection works. `null` if never verified. */
+  lastConnectedAt: string | null;
+}
+
+/**
+ * Options for `client.tenants.startConnectRedirect()` — kicks off the
+ * Workday OAuth ceremony on SparkHub side (Stripe-Connect pattern). The
+ * partner app navigates the browser to SparkHub's connection-create UI;
+ * SparkHub completes the Workday OAuth + stores tokens; SparkHub redirects
+ * back to `returnTo` with `?reconnected=1&tenantId=...` appended.
+ */
+export interface StartConnectRedirectOptions {
+  /** Absolute URL to return to after the connection ceremony completes (success or failure). */
+  returnTo: string;
+}

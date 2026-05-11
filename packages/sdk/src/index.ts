@@ -19,10 +19,13 @@
 
 export { createSparkhubClient, type SparkhubClient } from './client.js';
 export type {
+  Connection,
   PartnerAppMe,
   SparkhubClientOptions,
   SparkhubError,
+  StartConnectRedirectOptions,
   StorageMode,
+  Tenant,
   TokenRefreshEvent,
   TokenRefreshReason,
   TokenResponse,
