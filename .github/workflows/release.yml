@@ -25,14 +25,16 @@ jobs:
       - name: Install (workspaces)
         run: npm ci
 
+      # Build first — @sparkhub/react's type-check needs @sparkhub/sdk's
+      # dist/ to resolve cross-workspace imports.
+      - name: Build (all workspaces)
+        run: npm run build
+
       - name: Type check (all workspaces)
         run: npm run type-check
 
       - name: Test (all workspaces)
         run: npm test
-
-      - name: Build (all workspaces)
-        run: npm run build
 
       - name: Verify all package versions match tag
         run: |
