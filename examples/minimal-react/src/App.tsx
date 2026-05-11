@@ -1,7 +1,24 @@
+import { useEffect } from 'react';
 import { useSparkhub } from '@sparkhub/react';
+import { TenantSection } from './panels/TenantSection';
+import { SoapPanel } from './panels/SoapPanel';
+import { WqlPanel } from './panels/WqlPanel';
+import { RaasPanel } from './panels/RaasPanel';
+import { DataPanel } from './panels/DataPanel';
 
 export function App() {
-  const { isAuthenticated, me, meError, isLoading, login, logout, refreshMe } = useSparkhub();
+  const { client, isAuthenticated, me, meError, isLoading, login, logout, refreshMe } = useSparkhub();
+
+  // Strip the redirect-back query params on initial mount (sets after a
+  // round-trip from SparkHub's connection-create page).
+  useEffect(() => {
+    const reconnectedTenantId = client.tenants.consumeConnectionReturn();
+    if (reconnectedTenantId) {
+      // No automatic refresh here — useTenants() inside TenantSection
+      // re-fetches on mount; the URL strip prevents stale params from
+      // sticking around.
+    }
+  }, [client]);
 
   if (isLoading) {
     return <main className="container"><p>Initializing&hellip;</p></main>;
@@ -10,11 +27,10 @@ export function App() {
   return (
     <main className="container">
       <header>
-        <h1>SparkHub partner-app — minimal React example</h1>
+        <h1>SparkHub partner-app — M2 demo</h1>
         <p className="lead">
-          Reference implementation of the OAuth round-trip wrapped in a React
-          provider + hook. Copy <code>src/sparkhub-provider.tsx</code> as a
-          starting point for your own app.
+          End-to-end example of <code>@sparkhub/sdk</code> + <code>@sparkhub/react</code>.
+          Showcases auth, tenants, the three Workday runners (SOAP / RAAS / WQL), and managed storage.
         </p>
       </header>
 
@@ -24,35 +40,46 @@ export function App() {
         </div>
       )}
 
-      {isAuthenticated ? (
-        <section>
-          <div className="status ok">Signed in</div>
-          <h3>/api/partner-app/me</h3>
-          <pre>{JSON.stringify(me, null, 2)}</pre>
-          <div className="actions">
-            <button type="button" onClick={refreshMe}>Re-fetch /me</button>
-            <button type="button" className="primary" onClick={logout}>
-              Sign out
-            </button>
-          </div>
-        </section>
-      ) : (
-        <section>
-          <div className="status info">Not signed in</div>
-          <p>Click below to redirect to SparkHub for sign-in &amp; consent.</p>
-          <div className="actions">
-            <button type="button" className="primary" onClick={login}>
-              Sign in with SparkHub
-            </button>
-          </div>
-        </section>
+      <section className="card">
+        <h2>Authentication</h2>
+        {isAuthenticated ? (
+          <>
+            <div className="status ok">Signed in</div>
+            <h3>/api/partner-app/me</h3>
+            <pre>{JSON.stringify(me, null, 2)}</pre>
+            <div className="actions">
+              <button type="button" onClick={refreshMe}>Re-fetch /me</button>
+              <button type="button" className="primary" onClick={logout}>
+                Sign out
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="status info">Not signed in</div>
+            <div className="actions">
+              <button type="button" className="primary" onClick={login}>
+                Sign in with SparkHub
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+
+      {isAuthenticated && (
+        <>
+          <TenantSection />
+          <SoapPanel />
+          <RaasPanel />
+          <WqlPanel />
+          <DataPanel />
+        </>
       )}
 
       <footer>
         <small>
-          Token refresh fires <code>onTokenRefresh</code> &mdash; check the
-          browser console. Multi-tab refresh coordination is handled
-          automatically by the SDK.
+          Token refresh + multi-tab coordination handled by the SDK. Open browser console for{' '}
+          <code>onTokenRefresh</code> log lines.
         </small>
       </footer>
     </main>

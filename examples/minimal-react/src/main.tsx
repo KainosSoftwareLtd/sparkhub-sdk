@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SparkhubProvider } from '@sparkhub/react';
+import { SparkhubProvider, ActiveTenantProvider } from '@sparkhub/react';
 import { App } from './App';
 import './styles.css';
 
@@ -8,7 +8,14 @@ const clientId = import.meta.env.VITE_SPARKHUB_CLIENT_ID as string | undefined;
 const sparkhubBase =
   (import.meta.env.VITE_SPARKHUB_BASE as string | undefined) ?? 'https://sparkhub.studio';
 const orgHint = import.meta.env.VITE_SPARKHUB_ORG as string | undefined;
-const scopes = ((import.meta.env.VITE_SPARKHUB_SCOPES as string | undefined) ?? 'partner-app:read')
+const DEFAULT_SCOPES = [
+  'partner-app:read',
+  'partner-app:tenants:read',
+  'partner-app:tenants:execute',
+  'partner-app:data:read',
+  'partner-app:data:write',
+].join(',');
+const scopes = ((import.meta.env.VITE_SPARKHUB_SCOPES as string | undefined) ?? DEFAULT_SCOPES)
   .split(/[,\s]+/)
   .filter(Boolean);
 
@@ -35,7 +42,9 @@ if (!clientId) {
           },
         }}
       >
-        <App />
+        <ActiveTenantProvider persist="sessionStorage">
+          <App />
+        </ActiveTenantProvider>
       </SparkhubProvider>
     </StrictMode>,
   );

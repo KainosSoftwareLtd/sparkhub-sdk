@@ -25,6 +25,50 @@ Additive changes (new optional options, new methods, new exports, new types) are
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-11
+
+M2 platform-services release — adds three substantial new capability surfaces. **The repo is now a workspaces monorepo** publishing two packages in lockstep: `@sparkhub/sdk` (existing) and `@sparkhub/react` (new).
+
+### `@sparkhub/sdk` — added
+
+- **Tenants API** (cluster B): `client.tenants.list()`, `client.tenants.get(id)`, `client.tenants.connections(id)` — read-only access to the org's Workday tenants + per-user connection state. Requires `partner-app:tenants:read`.
+- **Connect redirect-out** (cluster B): `client.tenants.startConnectRedirect(tenantId, { returnTo })` navigates the browser to SparkHub's connection-create page (Stripe-Connect pattern). `client.tenants.consumeConnectionReturn()` detects the return-from-SparkHub query params on initial mount and strips them.
+- **Workday execution runners** (cluster C): `client.tenants.soap(tenantId, body)`, `client.tenants.raas(tenantId, body)`, `client.tenants.wql(tenantId, body)` — execute Workday operations through SparkHub's stored connection (partner never sees credentials). Body shapes match SparkHub's internal utilities 1:1. Requires `partner-app:tenants:execute`.
+- **Managed-storage builder API** (cluster A): `client.data.collection(name).find(...).run()`, `.findOne()`, `.insertOne()`, `.insertMany()`, `.updateOne()`, `.updateMany()`, `.deleteOne()`, `.deleteMany()`, `.count()`. Mirrors SparkHub's internal `mongoGateway`. Requires `partner-app:data:read` / `:write` / `:admin`.
+- New types exported: `Tenant`, `Connection`, `StartConnectRedirectOptions`, `SoapRequest`/`Response`, `RaasRequest`/`Response`, `WqlRequest`/`Response`, plus `DataApi`, `DataCollection`, and all data-result shapes.
+
+### `@sparkhub/react` — new package
+
+- `<SparkhubProvider>` + `useSparkhub()` — moved from in-tree example
+- `useTenants()`, `useConnections(tenantId)`, `useActiveTenant()` + `ActiveTenantProvider`
+- `<TenantSidebar>` — drop-in vertical tenant list with optional environment filter
+- `<TenantPanel>` — single-tenant detail + connection state + redirect-out "Connect" button
+- Minimal Clerk-style `appearance` API (`colorAccent`, `borderRadius`, `font`)
+
+### Server-side (SparkHub) — additions reflected in the SDK surface
+
+- 5 new OAuth scopes: `partner-app:tenants:read`, `partner-app:tenants:execute`, `partner-app:data:read`, `partner-app:data:write`, `partner-app:data:admin`
+- 14 new endpoints under `/api/partner-app/*` (3 tenants + 3 runners + 10-via-dispatcher data ops + 1 connect-page redirect-out landing)
+
+### v1 cuts (cluster A only — explicitly documented in `partner-app-data/CLAUDE_CONTEXT.md`)
+
+- No schema validation on writes
+- No per-user `userId` auto-injection
+- No lazy index creation on Mongo error 291
+- `aggregate` operator returns 501 — needs operator allowlisting before exposing
+
+All deferred to a v2 milestone once `partnerAppRegistry` is extended with a per-collection schema declaration.
+
+### Distribution
+
+Both tarballs published as a single GitHub Release per tag:
+
+```bash
+npm i \
+  https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.3.0/sparkhub-sdk-0.3.0.tgz \
+  https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.3.0/sparkhub-react-0.3.0.tgz
+```
+
 ## [0.2.0] - 2026-05-10
 
 ### Added
