@@ -126,10 +126,21 @@ export interface Tenant {
   host: string;
   /** Optional UI color tag — partners can mirror SparkHub's color coding in their own UI. */
   color?: string;
+  /**
+   * The signed-in user's connection to this tenant (server-joined).
+   * `null` if the user has no connection record yet. Partners should read
+   * `connection.ready` for "can I call against this tenant?" — single
+   * source of truth, no client-side state derivation.
+   */
+  connection: Connection | null;
 }
 
 /**
  * What partner apps see for a tenant's connection state.
+ *
+ * Partners should read `ready` to decide whether they can call against the
+ * tenant — `state` is exposed for diagnostics only. The server is the
+ * single source of truth for readiness; do NOT derive it client-side.
  */
 export interface Connection {
   /** Connection record ID (opaque to partner). */
@@ -138,22 +149,12 @@ export interface Connection {
   tenantId: string;
   /** Auth method backing this connection. */
   type: 'oauth' | 'username_password';
-  /** Connection liveness state. */
+  /** Connection liveness state (raw — most partners should use `ready` instead). */
   state: 'connected' | 'standby' | 'user_pwd' | 'disabled' | 'disconnected';
+  /** Server-derived "can the app call against this tenant right now?". */
+  ready: boolean;
   /** ISO 8601 — when SparkHub last verified this connection works. `null` if never verified. */
   lastConnectedAt: string | null;
-}
-
-/**
- * Options for `client.tenants.startConnectRedirect()` — kicks off the
- * Workday OAuth ceremony on SparkHub side (Stripe-Connect pattern). The
- * partner app navigates the browser to SparkHub's connection-create UI;
- * SparkHub completes the Workday OAuth + stores tokens; SparkHub redirects
- * back to `returnTo` with `?reconnected=1&tenantId=...` appended.
- */
-export interface StartConnectRedirectOptions {
-  /** Absolute URL to return to after the connection ceremony completes (success or failure). */
-  returnTo: string;
 }
 
 // ---------- Workday execution runners (cluster C) ----------

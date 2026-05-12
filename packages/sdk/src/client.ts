@@ -14,7 +14,6 @@ import type {
   SoapResponse,
   SparkhubClientOptions,
   SparkhubError,
-  StartConnectRedirectOptions,
   Tenant,
   TokenRefreshEvent,
   TokenResponse,
@@ -205,9 +204,9 @@ class SparkhubClient {
 
   /**
    * Tenants surface (cluster B). Read-only access to the org's Workday
-   * tenants + per-user connection state. Connection management remains
-   * SparkHub-internal; use `startConnectRedirect()` to kick off the
-   * Workday OAuth ceremony on SparkHub side.
+   * tenants + per-user connection state. Connection management is
+   * SparkHub-internal — partner apps observe `Connection.ready` and
+   * surface a "not connected" message; they do NOT trigger connect flows.
    *
    * All methods require the `partner-app:tenants:read` scope on the
    * active token (server returns 403 `insufficient_scope` otherwise).
@@ -246,52 +245,6 @@ class SparkhubClient {
       }
       const body = (await r.json()) as { connections: Connection[] };
       return body.connections;
-    },
-
-    /**
-     * Navigate the browser to SparkHub's connection-create page for the
-     * given tenant. SparkHub completes the Workday OAuth ceremony, stores
-     * tokens, and redirects back to `opts.returnTo` with
-     * `?reconnected=1&tenantId=...` appended. Never returns.
-     */
-    startConnectRedirect: (tenantId: string, opts: StartConnectRedirectOptions): never => {
-      const url = new URL(`${this.base}/tenants/${encodeURIComponent(tenantId)}/connect`);
-      url.searchParams.set('return_to', opts.returnTo);
-      url.searchParams.set('app', this.clientId);
-      window.location.assign(url.toString());
-      // assign() never returns; cast for TS callers
-      throw new Error('unreachable: window.location.assign did not navigate');
-    },
-
-    /**
-     * Detect a return-from-SparkHub redirect on the current URL. If the
-     * current URL has `?reconnected=1&tenantId=<id>` query params (set by
-     * SparkHub at the end of the connection-create ceremony), strips them
-     * via `history.replaceState` and returns the reconnected tenantId.
-     * Returns `null` otherwise.
-     *
-     * Call this on initial mount in your app. Use the returned tenantId
-     * to trigger a refresh of your tenant list / panel.
-     *
-     * @example
-     * ```ts
-     * useEffect(() => {
-     *   const id = client.tenants.consumeConnectionReturn();
-     *   if (id) refreshTenants();
-     * }, []);
-     * ```
-     */
-    consumeConnectionReturn: (): string | null => {
-      if (typeof window === 'undefined') return null;
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('reconnected') !== '1') return null;
-      const tenantId = params.get('tenantId');
-      const cleanUrl = new URL(window.location.href);
-      cleanUrl.searchParams.delete('reconnected');
-      cleanUrl.searchParams.delete('tenantId');
-      cleanUrl.searchParams.delete('connect_error');
-      window.history.replaceState({}, '', cleanUrl.toString());
-      return tenantId;
     },
 
     /**

@@ -39,7 +39,6 @@ export type {
   SoapResponse,
   SparkhubClientOptions,
   SparkhubError,
-  StartConnectRedirectOptions,
   StorageMode,
   Tenant,
   TokenRefreshEvent,

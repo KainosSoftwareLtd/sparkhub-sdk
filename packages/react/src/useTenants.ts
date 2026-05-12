@@ -1,8 +1,7 @@
 /**
  * `useTenants()` — React hook over `client.tenants.list()`.
  *
- * Auto-fetches on mount. Exposes `refresh()` for manual refetch (e.g. after
- * returning from a `startConnectRedirect` round-trip).
+ * Auto-fetches on mount. Exposes `refresh()` for manual refetch.
  *
  * Requires the `partner-app:tenants:read` scope on the active token.
  */

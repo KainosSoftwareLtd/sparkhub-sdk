@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useSparkhub } from '@sparkhub/react';
 import { TenantSection } from './panels/TenantSection';
 import { SoapPanel } from './panels/SoapPanel';
@@ -7,18 +6,7 @@ import { RaasPanel } from './panels/RaasPanel';
 import { DataPanel } from './panels/DataPanel';
 
 export function App() {
-  const { client, isAuthenticated, me, meError, isLoading, login, logout, refreshMe } = useSparkhub();
-
-  // Strip the redirect-back query params on initial mount (sets after a
-  // round-trip from SparkHub's connection-create page).
-  useEffect(() => {
-    const reconnectedTenantId = client.tenants.consumeConnectionReturn();
-    if (reconnectedTenantId) {
-      // No automatic refresh here — useTenants() inside TenantSection
-      // re-fetches on mount; the URL strip prevents stale params from
-      // sticking around.
-    }
-  }, [client]);
+  const { isAuthenticated, me, meError, isLoading, login, logout, refreshMe } = useSparkhub();
 
   if (isLoading) {
     return <main className="container"><p>Initializing&hellip;</p></main>;

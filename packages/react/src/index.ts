@@ -14,7 +14,6 @@ export { ActiveTenantProvider, useActiveTenant } from './useActiveTenant.js';
 
 // Tenant components
 export { TenantSidebar } from './TenantSidebar.js';
-export { TenantPanel } from './TenantPanel.js';
 
 // Re-export types for convenience
 export type {
@@ -34,7 +33,3 @@ export type {
   TenantSidebarProps,
   TenantSidebarAppearance,
 } from './TenantSidebar.js';
-export type {
-  TenantPanelProps,
-  TenantPanelAppearance,
-} from './TenantPanel.js';

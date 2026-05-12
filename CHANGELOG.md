@@ -25,6 +25,28 @@ Additive changes (new optional options, new methods, new exports, new types) are
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-12
+
+Trims the half-baked connect-redirect surface and surfaces server-derived connection readiness.
+
+### `@sparkhub/sdk` — breaking
+
+- **Removed** `client.tenants.startConnectRedirect(tenantId, { returnTo })` and `client.tenants.consumeConnectionReturn()`. The matching SparkHub-side landing page (`/tenants/[tenantId]/connect`) is gone. Connection management is SparkHub-internal; partner apps observe `Connection.ready` and surface a "not connected" message without any redirect flow. The `StartConnectRedirectOptions` type is no longer exported.
+
+### `@sparkhub/sdk` — added
+
+- `Connection.ready: boolean` — server-derived "can the app call against this tenant right now?". Single source of truth; partners should NOT derive readiness from raw `state` values.
+- `Tenant.connection: Connection | null` — the signed-in user's connection to the tenant, populated inline by `client.tenants.list()`. Removes the need for an N+1 fan-out to `connections(id)` per tenant.
+
+### `@sparkhub/react` — breaking
+
+- **Removed** `<TenantPanel>` and its types (`TenantPanelProps`, `TenantPanelAppearance`). Partner apps build their own combo against `useTenants()` + the new `Tenant.connection.ready` field. `<TenantSidebar>` remains.
+
+### Server-side (SparkHub) — additions reflected in the SDK surface
+
+- "Remember this decision" consent cookie (`sh_v2_pa_consent`, HS256-signed, 90d, HttpOnly, SameSite=Lax). On `/oauth/authorize`, if the requested scopes are a subset of a remembered grant AND the cookie's `sub` matches the signed-in user, the consent screen is skipped and the auth code is minted directly. Audited as `consent.auto-approved`.
+- Per-tenant connection state is now joined in `GET /api/partner-app/tenants`. The per-tenant `GET /api/partner-app/tenants/{id}/connections` endpoint remains (unchanged) for callers that want the raw list.
+
 ## [0.3.0] - 2026-05-11
 
 M2 platform-services release — adds three substantial new capability surfaces. **The repo is now a workspaces monorepo** publishing two packages in lockstep: `@sparkhub/sdk` (existing) and `@sparkhub/react` (new).
