@@ -3,3 +3,6 @@ node_modules/
 *.tgz
 .tsbuildinfo
 .release-artifacts/
+
+# macOS
+.DS_Store
