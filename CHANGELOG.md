@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1
+
+- All packages: add the `default` condition to the `exports` map (webpack/Next CJS-path resolution failed with only `types`+`import` — "Package path . is not exported").
+
 ## v0.4.0
 
 - **New package: `@sparkhub/kb-viewer`** — read-only BlockNote viewer for SparkHub Knowledge Base content (the `content` block array from the public KB API). Standalone (no OAuth / no `@sparkhub/sdk` dependency): peer `react`/`react-dom` 18|19, deps `@blocknote/{core,react,mantine}` ^0.31. Follows the host page's `data-theme` (or explicit `theme` prop). First consumer: the K-Store portal.
