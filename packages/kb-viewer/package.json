@@ -1,7 +1,7 @@
 {
-  "name": "@sparkhub/sdk",
+  "name": "@sparkhub/kb-viewer",
   "version": "0.4.0",
-  "description": "OAuth client library for browser-based partner apps on the SparkHub platform.",
+  "description": "Read-only BlockNote viewer for SparkHub Knowledge Base content — renders the `content` block array served by SparkHub's public KB API.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
@@ -17,6 +17,7 @@
     "dist",
     "src",
     "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
     "README.md",
     "LICENSE"
   ],
@@ -24,37 +25,46 @@
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist",
-    "test": "vitest run",
-    "test:watch": "vitest",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "keywords": [
     "sparkhub",
-    "oauth",
-    "pkce",
-    "partner-app",
-    "browser-sdk"
+    "blocknote",
+    "knowledge-base",
+    "viewer",
+    "partner-app"
   ],
   "engines": {
     "node": ">=18"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "**/*.css"
+  ],
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/KainosSoftwareLtd/sparkhub-sdk.git",
-    "directory": "packages/sdk"
+    "directory": "packages/kb-viewer"
   },
-  "homepage": "https://github.com/KainosSoftwareLtd/sparkhub-sdk#readme",
+  "homepage": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/tree/main/packages/kb-viewer#readme",
   "bugs": {
     "url": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/issues"
   },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "@blocknote/core": "^0.31.0",
+    "@blocknote/mantine": "^0.31.0",
+    "@blocknote/react": "^0.31.0"
+  },
   "devDependencies": {
-    "@vitest/coverage-v8": "^2.1.0",
-    "jsdom": "^25.0.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.6.0"
   }
 }
