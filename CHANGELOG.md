@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.0
+
+- **New package: `@sparkhub/kb-viewer`** — read-only BlockNote viewer for SparkHub Knowledge Base content (the `content` block array from the public KB API). Standalone (no OAuth / no `@sparkhub/sdk` dependency): peer `react`/`react-dom` 18|19, deps `@blocknote/{core,react,mantine}` ^0.31. Follows the host page's `data-theme` (or explicit `theme` prop). First consumer: the K-Store portal.
+- `@sparkhub/sdk` / `@sparkhub/react`: version bump only (lockstep).
+
 All notable changes to `@sparkhub/sdk` are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — with the pre-1.0 caveat below.

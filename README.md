@@ -6,6 +6,7 @@ Monorepo for the SparkHub partner-app client SDKs.
 |---|---|---|
 | [`@sparkhub/sdk`](./packages/sdk) | Framework-agnostic OAuth client + authenticated `fetch` for partner apps | [packages/sdk](./packages/sdk) |
 | [`@sparkhub/react`](./packages/react) | React Provider + hooks + components built on top of `@sparkhub/sdk` | [packages/react](./packages/react) |
+| [`@sparkhub/kb-viewer`](./packages/kb-viewer) | Read-only BlockNote viewer for SparkHub public-KB `content` (standalone — no OAuth needed) | [packages/kb-viewer](./packages/kb-viewer) |
 
 ## Why two packages
 
