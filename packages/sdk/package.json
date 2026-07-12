@@ -1,6 +1,6 @@
 {
   "name": "@sparkhub/sdk",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "OAuth client library for browser-based partner apps on the SparkHub platform.",
   "license": "MIT",
   "type": "module",

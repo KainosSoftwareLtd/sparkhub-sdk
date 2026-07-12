@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.0
+
+- **`@sparkhub/kb-viewer`: SparkHub custom-block parity + unknown-block crash guard** (SparkHub CR #1153).
+  - **Crash guard**: the incoming document is normalized before mounting — unknown (future) block types degrade to neutral paragraphs (inline text + children preserved), unknown inline types to their plain text, unknown/out-of-range props are dropped; a last-resort error boundary renders the page's plain text. The viewer never throws on unknown content.
+  - **Parity renderers** (independent read-only implementations, registered in a viewer-side BlockNote schema): `callout`, `wrappedImage`, `fileAsset`, `drawio` (PNG render asset), `mermaid` (lazy-loaded; DOMPurify-sanitized SVG), plus `mention` (plain text — no user links on anonymous surfaces) and `anchor` (plain `<a>` for external http(s)/mailto URLs; plain text for SparkHub-object anchors) inline content. `codeBlock`/`heading` stay on BlockNote defaults (no shiki highlighting — documented tradeoff).
+  - **New prop `resolveAssetUrl?: (assetId: string) => string`** — maps KB asset ids to fetchable URLs for `fileAsset`/`drawio`/`wrappedImage` (block props carry bare asset ids / relative public serve paths); falls back to any URL already in props when omitted.
+  - New deps: `mermaid` ^11 + `dompurify` ^3 (regular dependencies like `@blocknote/*`; mermaid is dynamic-imported so pages without diagrams never fetch it). New exports: `viewerSchema`, `normalizeDocument`, `documentPlainText`, `ResolveAssetUrl`. Vitest suite added (`npm -w @sparkhub/kb-viewer test`).
+- `@sparkhub/sdk` / `@sparkhub/react`: version bump only (lockstep).
+
 ## v0.4.1
 
 - All packages: add the `default` condition to the `exports` map (webpack/Next CJS-path resolution failed with only `types`+`import` — "Package path . is not exported").
