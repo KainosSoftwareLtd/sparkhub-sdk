@@ -10,7 +10,6 @@
  * the host) with fixed colors chosen to read on both light and dark themes.
  */
 import { useEffect, useState } from "react";
-import type { InlineContentSchema, StyleSchema } from "@blocknote/core";
 import { createReactBlockSpec, type ReactCustomBlockRenderProps } from "@blocknote/react";
 import { useResolveAssetUrl, resolveMaybeAssetUrl } from "./asset-url";
 import {
@@ -54,7 +53,7 @@ const calloutConfig = {
   content: "inline",
 } as const;
 
-function CalloutView({ block, contentRef }: ReactCustomBlockRenderProps<typeof calloutConfig, InlineContentSchema, StyleSchema>) {
+function CalloutView({ block, contentRef }: ReactCustomBlockRenderProps<typeof calloutConfig>) {
   const type = (block.props.calloutType as CalloutType) ?? "note";
   const s = CALLOUT_STYLES[type] ?? CALLOUT_STYLES.note;
   const Icon = s.Icon;
@@ -107,7 +106,7 @@ const wrappedImageConfig = {
 function WrappedImageView({
   block,
   contentRef,
-}: ReactCustomBlockRenderProps<typeof wrappedImageConfig, InlineContentSchema, StyleSchema>) {
+}: ReactCustomBlockRenderProps<typeof wrappedImageConfig>) {
   const resolve = useResolveAssetUrl();
   const { url, caption, widthPercent } = block.props;
   const side = (block.props.side as WrappedImageSide) ?? "left";
@@ -199,7 +198,7 @@ const emptyCard: React.CSSProperties = {
   opacity: 0.7,
 };
 
-function FileAssetView({ block }: ReactCustomBlockRenderProps<typeof fileAssetConfig, InlineContentSchema, StyleSchema>) {
+function FileAssetView({ block }: ReactCustomBlockRenderProps<typeof fileAssetConfig>) {
   const resolve = useResolveAssetUrl();
   const { assetId, name } = block.props;
 
@@ -273,7 +272,7 @@ const drawioConfig = {
   content: "none",
 } as const;
 
-function DrawioView({ block }: ReactCustomBlockRenderProps<typeof drawioConfig, InlineContentSchema, StyleSchema>) {
+function DrawioView({ block }: ReactCustomBlockRenderProps<typeof drawioConfig>) {
   const resolve = useResolveAssetUrl();
   const { pngAssetId } = block.props;
 
@@ -365,7 +364,7 @@ function loadMermaid(): Promise<{ mermaid: MermaidModule; sanitize: SanitizeFn }
   return mermaidPromise;
 }
 
-function MermaidView({ block }: ReactCustomBlockRenderProps<typeof mermaidConfig, InlineContentSchema, StyleSchema>) {
+function MermaidView({ block }: ReactCustomBlockRenderProps<typeof mermaidConfig>) {
   const code = block.props.code;
   const [svg, setSvg] = useState("");
   const [error, setError] = useState<string | null>(null);
