@@ -10,7 +10,7 @@ Why not render the markdown `body`? It's a **lossy projection** — as SparkHub'
 npm i https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.5.0/sparkhub-kb-viewer-0.5.0.tgz
 ```
 
-Peer deps: `react` / `react-dom` 18 or 19.
+Peer deps: `react` / `react-dom` 18 or 19, plus `@mantine/core` / `@mantine/hooks` `^8.3.11 || ^9.0.2` (required by `@blocknote/mantine` ≥ 0.51 — it no longer bundles Mantine; install them alongside this package: `npm i @mantine/core @mantine/hooks`).
 
 ## Use
 

@@ -29,14 +29,15 @@ import {
 import { Anchor, Mention } from "./inline";
 import type { PropSchemaLike, ViewerSchemaInfo } from "./normalize";
 
+// `createReactBlockSpec` returns a spec *creator* since BlockNote 0.4x — call it.
 export const viewerSchema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
-    mermaid: MermaidBlock,
-    callout: CalloutBlock,
-    fileAsset: FileAssetBlock,
-    drawio: DrawioBlock,
-    wrappedImage: WrappedImageBlock,
+    mermaid: MermaidBlock(),
+    callout: CalloutBlock(),
+    fileAsset: FileAssetBlock(),
+    drawio: DrawioBlock(),
+    wrappedImage: WrappedImageBlock(),
   },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,

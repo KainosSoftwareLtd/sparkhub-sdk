@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **`@sparkhub/kb-viewer`: BlockNote 0.31 → 0.51.4** (the minor SparkHub core + collab pin) — drops the EOL TipTap 2.x line (`@tiptap/*` now 3.x only) and `uuid@8` (now 14.x) from the transitive tree, and aligns the viewer with the block JSON the 0.51 editor writes.
+  - **Peer deps (breaking for installs)**: `@blocknote/mantine` ≥ 0.51 no longer bundles Mantine, so `@mantine/core` + `@mantine/hooks` (`^8.3.11 || ^9.0.2`) are new **peerDependencies** — consumers (Cortex) must install them. `react` / `react-dom` peers unchanged (18 or 19).
+  - Public API unchanged (same exports, same `KbViewerProps`). Internal 0.51 adaptations only: `createReactBlockSpec` now returns a spec *creator* (called at schema build), `ReactCustomBlockRenderProps` takes one generic.
+  - `codeBlock` deliberately stays on BlockNote's default spec (no `@blocknote/code-block`/shiki) — same documented tradeoff as v0.5.0.
+
 ## v0.5.0
 
 - **`@sparkhub/kb-viewer`: SparkHub custom-block parity + unknown-block crash guard** (SparkHub CR #1153).
