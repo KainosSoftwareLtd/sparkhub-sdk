@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **New package: `@sparkhub/kb-editor`** — the BlockNote **editor** SparkHub's Knowledge Base uses, lifted from the collab satellite's `shared/block-editor` (partner-app write scopes, step 4; BlockNote is first-class for partner apps: a partner app authors KB pages as `content` block arrays through `POST /api/integration/kb_create_page` / `kb_update_page`, never a markdown detour). Same block schema SparkHub writes: defaults + configured `codeBlock`/`heading` (shiki dual-theme tokens) + border/alignment-extended `table` + `mermaid` + `callout` + `fileAsset` + `drawio` + `wrappedImage` + `mention` / `anchor` inline content. Profiles `full` / `compact` / `inline`.
+  - **Host couplings removed, never fetches on its own**: `theme` prop (else follows `data-theme`, like the viewer); the mention roster and pasted-URL anchor resolution are props (`mentionUsers`, `resolveAnchor`); the file-asset code preview is host-supplied (`FileAssetProvider.renderPreview`, e.g. a read-only Monaco; plain `<pre>` fallback); mermaid lazy-loaded + DOMPurify-sanitised like the viewer; menus/popovers on Mantine (a peer, shared with the viewer) — no Radix, no Tailwind.
+  - **`@sparkhub/kb-editor/pure`** — the server-safe half (no React/DOM/@blocknote-react): `blocksToMarkdown` / `blocksToPlainText` / `blocksToSparkMD` / `sparkMDToBlocks` / `parseMarkdownToBlocks` / `parseSparkMD` / `applyBlockOps` / `blockDocumentArray` / table-border helpers. Import this in server code.
+  - CSS: `import '@sparkhub/kb-editor/style.css'` (plus BlockNote's own `@blocknote/mantine/style.css`, imported by the component).
+  - Peers: `react` / `react-dom` 18|19, `@mantine/core` / `@mantine/hooks` `^8.3.11 || ^9.0.2`. Deps: `@blocknote/{core,react,mantine,code-block}` ^0.51.4, `mermaid`, `dompurify`, `lucide-react`, `unified` + `remark-{parse,gfm}`, `prosemirror-highlight`, `zod` ^4.
+  - Follow-up (separate PR on the collab satellite): collab consumes this package and deletes its local copy.
+- `@sparkhub/sdk` / `@sparkhub/react` / `@sparkhub/kb-viewer`: version bump only (lockstep).
+
 - **`@sparkhub/kb-viewer`: BlockNote 0.31 → 0.51.4** (the minor SparkHub core + collab pin) — drops the EOL TipTap 2.x line (`@tiptap/*` now 3.x only) and `uuid@8` (now 14.x) from the transitive tree, and aligns the viewer with the block JSON the 0.51 editor writes.
   - **Peer deps (breaking for installs)**: `@blocknote/mantine` ≥ 0.51 no longer bundles Mantine, so `@mantine/core` + `@mantine/hooks` (`^8.3.11 || ^9.0.2`) are new **peerDependencies** — consumers (Cortex) must install them. `react` / `react-dom` peers unchanged (18 or 19).
   - Public API unchanged (same exports, same `KbViewerProps`). Internal 0.51 adaptations only: `createReactBlockSpec` now returns a spec *creator* (called at schema build), `ReactCustomBlockRenderProps` takes one generic.

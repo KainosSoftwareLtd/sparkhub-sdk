@@ -1,7 +1,7 @@
 {
-  "name": "@sparkhub/kb-viewer",
+  "name": "@sparkhub/kb-editor",
   "version": "0.6.0",
-  "description": "Read-only BlockNote viewer for SparkHub Knowledge Base content — renders the `content` block array served by SparkHub's public KB API.",
+  "description": "BlockNote editor for SparkHub Knowledge Base content — the same block schema SparkHub's own editor writes (`content` block arrays), for partner apps that author KB pages and tickets through /api/integration.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,13 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    }
+    },
+    "./pure": {
+      "types": "./dist/pure.d.ts",
+      "import": "./dist/pure.js",
+      "default": "./dist/pure.js"
+    },
+    "./style.css": "./dist/block-editor.css"
   },
   "files": [
     "dist",
@@ -23,7 +29,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && cp src/block-editor.css dist/block-editor.css",
     "type-check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -34,14 +40,16 @@
     "sparkhub",
     "blocknote",
     "knowledge-base",
-    "viewer",
+    "editor",
     "partner-app"
   ],
   "engines": {
     "node": ">=18"
   },
   "sideEffects": [
-    "**/*.css"
+    "**/*.css",
+    "./dist/shiki-dual-theme.js",
+    "./dist/BlockEditor.js"
   ],
   "publishConfig": {
     "access": "public"
@@ -49,9 +57,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/KainosSoftwareLtd/sparkhub-sdk.git",
-    "directory": "packages/kb-viewer"
+    "directory": "packages/kb-editor"
   },
-  "homepage": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/tree/main/packages/kb-viewer#readme",
+  "homepage": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/tree/main/packages/kb-editor#readme",
   "bugs": {
     "url": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/issues"
   },
@@ -62,19 +70,27 @@
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "dependencies": {
+    "@blocknote/code-block": "^0.51.4",
     "@blocknote/core": "^0.51.4",
     "@blocknote/mantine": "^0.51.4",
     "@blocknote/react": "^0.51.4",
     "dompurify": "^3.2.0",
-    "mermaid": "^11.0.0"
+    "lucide-react": "^1.16.0",
+    "mermaid": "^11.0.0",
+    "prosemirror-highlight": "^0.15.3",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@mantine/core": "^9.3.2",
+    "@mantine/hooks": "^9.3.2",
+    "@types/mdast": "^4.0.4",
     "@types/react": "^19.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.1.0",
-    "@mantine/core": "^9.3.2",
-    "@mantine/hooks": "^9.3.2"
+    "vitest": "^2.1.0"
   }
 }
