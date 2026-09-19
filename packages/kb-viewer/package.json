@@ -1,6 +1,6 @@
 {
   "name": "@sparkhub/kb-viewer",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Read-only BlockNote viewer for SparkHub Knowledge Base content — renders the `content` block array served by SparkHub's public KB API.",
   "license": "MIT",
   "type": "module",

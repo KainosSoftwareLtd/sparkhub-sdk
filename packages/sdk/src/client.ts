@@ -43,6 +43,7 @@ class SparkhubClient {
   private readonly pkce: PkceStore;
   private readonly coordinator: RefreshCoordinator;
   private readonly onTokenRefresh: SparkhubClientOptions['onTokenRefresh'];
+  private readonly authorizeRedirect: SparkhubClientOptions['authorizeRedirect'];
   private refreshInFlight: Promise<SessionRecord | null> | null = null;
   /** Managed-storage API — `client.data.collection(name).find(...).run()` etc. */
   readonly data: DataApi;
@@ -66,6 +67,7 @@ class SparkhubClient {
     this.session = new SessionStore(opts.storage ?? 'session');
     this.pkce = new PkceStore();
     this.onTokenRefresh = opts.onTokenRefresh;
+    this.authorizeRedirect = opts.authorizeRedirect;
     this.coordinator = new RefreshCoordinator({
       clientId: this.clientId,
       onPeerEvent: (event) => {
@@ -118,7 +120,8 @@ class SparkhubClient {
       url.searchParams.set('org', this.org);
     }
 
-    window.location.assign(url.toString());
+    const target = this.authorizeRedirect ? this.authorizeRedirect(url.toString()) : url.toString();
+    window.location.assign(target);
     // assign() never returns; cast for TS
     return new Promise<never>(() => undefined);
   }

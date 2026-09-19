@@ -30,6 +30,7 @@ const client = createSparkhubClient({
   // Optional:
   sparkhubBase: 'https://sparkhub.studio',             // default; override for staging/local
   storage: 'session',                                  // 'session' (default) | 'local'
+  // authorizeRedirect: (url) => url,                  // wrap the authorize URL (e.g. an IdP-first hop)
 });
 
 // In your app's main entry:
@@ -54,7 +55,7 @@ await client.logout();
 |---|---|
 | `isAuthenticated()` | Synchronous check — true iff a non-expired access token is in storage. |
 | `accessToken()` | Returns the current access token string (or `null`). Useful for non-`fetch` callers (e.g. `EventSource`). |
-| `authorize()` | Generates PKCE pair, stores verifier + state in `sessionStorage`, redirects to `${sparkhubBase}/oauth/authorize?...`. Never returns. |
+| `authorize()` | Generates PKCE pair, stores verifier + state in `sessionStorage`, redirects to `${sparkhubBase}/oauth/authorize?...` — or to whatever `authorizeRedirect(authorizeUrl)` returns when that option is set (an app whose users always sign in through one federated IdP returns `${base}/api/auth-v2/sso/start?idp=<name>&return=<encoded authorize path>` so SparkHub jumps straight to that IdP and comes back to consent). Never returns. |
 | `handleCallback()` | Reads `?code` + `?state` from current URL, validates state + PKCE, exchanges via `POST /oauth/token`, stores tokens, strips OAuth params from URL via `history.replaceState`. Throws on validation failure. |
 | `fetch(path, init?)` | `fetch` wrapper. Resolves relative paths against `sparkhubBase`. Attaches `Authorization: Bearer <access>`. On `401`: tries refresh once, retries; if refresh fails, clears storage and throws — your app should redirect to `authorize()`. |
 | `me()` | Convenience: `fetch('/api/partner-app/me').then((r) => r.json())`. Throws on non-2xx. |

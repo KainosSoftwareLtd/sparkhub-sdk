@@ -1,6 +1,6 @@
 {
   "name": "@sparkhub/kb-editor",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "BlockNote editor for SparkHub Knowledge Base content — the same block schema SparkHub's own editor writes (`content` block arrays), for partner apps that author KB pages and tickets through /api/integration.",
   "license": "MIT",
   "type": "module",

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **`@sparkhub/sdk`: `authorizeRedirect` option** — `createSparkhubClient({ authorizeRedirect: (authorizeUrl) => string })` is the last step of `authorize()`: it receives the built `/oauth/authorize?...` URL and returns where the browser goes. Default identity. Lets an app put an identity-provider hop in front of the authorize page (Cortex on prod: `${base}/api/auth-v2/sso/start?idp=Kainos-SSO&return=<authorize path>`), which is the one thing a hand-rolled OAuth helper could do that the SDK could not.
+- `@sparkhub/react` / `@sparkhub/kb-viewer` / `@sparkhub/kb-editor`: version bump only (lockstep).
+
+## v0.6.0
+
 - **New package: `@sparkhub/kb-editor`** — the BlockNote **editor** SparkHub's Knowledge Base uses, lifted from the collab satellite's `shared/block-editor` (partner-app write scopes, step 4; BlockNote is first-class for partner apps: a partner app authors KB pages as `content` block arrays through `POST /api/integration/kb_create_page` / `kb_update_page`, never a markdown detour). Same block schema SparkHub writes: defaults + configured `codeBlock`/`heading` (shiki dual-theme tokens) + border/alignment-extended `table` + `mermaid` + `callout` + `fileAsset` + `drawio` + `wrappedImage` + `mention` / `anchor` inline content. Profiles `full` / `compact` / `inline`.
   - **Host couplings removed, never fetches on its own**: `theme` prop (else follows `data-theme`, like the viewer); the mention roster and pasted-URL anchor resolution are props (`mentionUsers`, `resolveAnchor`); the file-asset code preview is host-supplied (`FileAssetProvider.renderPreview`, e.g. a read-only Monaco; plain `<pre>` fallback); mermaid lazy-loaded + DOMPurify-sanitised like the viewer; menus/popovers on Mantine (a peer, shared with the viewer) — no Radix, no Tailwind.
   - **`@sparkhub/kb-editor/pure`** — the server-safe half (no React/DOM/@blocknote-react): `blocksToMarkdown` / `blocksToPlainText` / `blocksToSparkMD` / `sparkMDToBlocks` / `parseMarkdownToBlocks` / `parseSparkMD` / `applyBlockOps` / `blockDocumentArray` / table-border helpers. Import this in server code.

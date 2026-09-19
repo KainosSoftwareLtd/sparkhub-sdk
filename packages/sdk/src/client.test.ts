@@ -402,3 +402,45 @@ describe('client.handleCallback', () => {
     await expect(client.handleCallback()).rejects.toMatchObject({ code: 'expired_state' });
   });
 });
+
+describe('client.authorize — authorizeRedirect hook', () => {
+  // authorize() awaits the PKCE digest before it navigates, so the test waits
+  // for the navigation itself rather than a fixed tick (which raced under a
+  // loaded full-suite run).
+  const nextAssign = () =>
+    new Promise<string>((resolve) => {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: { ...window.location, assign: (u: string) => resolve(u) },
+      });
+    });
+
+  it('navigates to the SparkHub authorize URL by default', async () => {
+    const assigned = nextAssign();
+    const client = createSparkhubClient(VALID_OPTS);
+    void client.authorize();
+    const u = new URL(await assigned);
+    expect(u.pathname).toBe('/oauth/authorize');
+    expect(u.searchParams.get('client_id')).toBe(VALID_OPTS.clientId);
+    expect(u.searchParams.get('code_challenge_method')).toBe('S256');
+  });
+
+  it('lets the host wrap the authorize URL in an IdP-first hop (the PKCE record is already stored)', async () => {
+    const assigned = nextAssign();
+    const client = createSparkhubClient({
+      ...VALID_OPTS,
+      authorizeRedirect: (authorizeUrl) => {
+        const a = new URL(authorizeUrl);
+        return `${a.origin}/api/auth-v2/sso/start?idp=Kainos-SSO&return=${encodeURIComponent(a.pathname + a.search)}`;
+      },
+    });
+    void client.authorize();
+    const u = new URL(await assigned);
+    expect(u.pathname).toBe('/api/auth-v2/sso/start');
+    expect(u.searchParams.get('idp')).toBe('Kainos-SSO');
+    const ret = new URL(u.searchParams.get('return')!, u.origin);
+    expect(ret.pathname).toBe('/oauth/authorize');
+    expect(ret.searchParams.get('state')).toBeTruthy();
+    expect(window.sessionStorage.getItem('sparkhub_partner_app_pkce')).toBeTruthy();
+  });
+});
