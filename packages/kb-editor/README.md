@@ -7,7 +7,7 @@ Pair it with [`@sparkhub/kb-viewer`](../kb-viewer) (read-only render) and [`@spa
 ## Install
 
 ```bash
-npm i https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.6.0/sparkhub-kb-editor-0.6.0.tgz
+npm i https://github.com/KainosSoftwareLtd/sparkhub-sdk/releases/download/v0.6.1/sparkhub-kb-editor-0.6.1.tgz
 npm i @mantine/core @mantine/hooks   # peers (shared with @sparkhub/kb-viewer)
 ```
 

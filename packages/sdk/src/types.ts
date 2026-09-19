@@ -57,6 +57,18 @@ export interface SparkhubClientOptions {
    * the refresh.
    */
   onTokenRefresh?: (event: TokenRefreshEvent) => void;
+  /**
+   * Last step of `authorize()`: receives the fully built SparkHub
+   * `/oauth/authorize?...` URL and returns the URL the browser should be
+   * sent to. Default: identity. Use it to put an identity-provider hop in
+   * front of the authorize page — e.g. an app whose users always sign in
+   * through one federated IdP returns
+   * `${base}/api/auth-v2/sso/start?idp=<name>&return=<encoded authorize path>`
+   * so SparkHub jumps straight to that IdP and comes back to the consent
+   * screen. The PKCE state is already stored when this runs; the returned
+   * URL must eventually land on the authorize URL you were given.
+   */
+  authorizeRedirect?: (authorizeUrl: string) => string;
 }
 
 export interface PartnerAppMe {
