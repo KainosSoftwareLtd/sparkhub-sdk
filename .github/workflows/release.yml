@@ -39,6 +39,9 @@ jobs:
       - name: Build @sparkhub/kb-viewer
         run: npm -w @sparkhub/kb-viewer run build
 
+      - name: Build @sparkhub/kb-editor
+        run: npm -w @sparkhub/kb-editor run build
+
       - name: Type check (all workspaces)
         run: npm run type-check
 

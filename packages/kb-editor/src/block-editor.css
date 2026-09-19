@@ -1,0 +1,355 @@
+/* SparkHub overrides for BlockNote (loaded after the mantine theme). */
+
+/*
+ * Slash / mention suggestion menus: BlockNote's floating-ui `size` middleware
+ * grows the menu to fill ALL available viewport space (often 550–800px), so a
+ * long item list becomes a full-height wall that dominates the screen. Cap it
+ * to a compact, scrollable dropdown — `!important` overrides floating-ui's
+ * inline max-height (which has no !important). It still flips + stays in view.
+ */
+.bn-suggestion-menu {
+  max-height: min(340px, 60vh) !important;
+}
+
+/*
+ * Code blocks: @blocknote/code-block loads BOTH github-light + github-dark shiki
+ * themes, and BlockNoteView is told the active theme — so the syntax tokens
+ * already follow light/dark. BlockNote core, however, hardcodes a dark panel
+ * (#161616 bg / #fff text) on the code block regardless of theme. Override it to
+ * follow the app theme: a clean light GitHub-style panel in light mode (so it no
+ * longer reads as a black slab on a light page), and the dark panel under .dark.
+ */
+.bn-block-content[data-content-type='codeBlock'] {
+  background-color: var(--muted);
+  color: var(--foreground);
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--border);
+  overflow: hidden;
+}
+.bn-block-content[data-content-type='codeBlock'] > pre {
+  background: var(--muted);
+  border-radius: 8px;
+  /*
+   * ~20-line window (CR #1146 Phase 1): explicit line-height makes the cap
+   * math deterministic (20 lines x 1.5em + the 24px top/bottom padding from
+   * BlockNote core, +1px tolerance). Content beyond the cap scrolls inside
+   * the pre — the container's `overflow: hidden` above only clips the
+   * rounded corners. Applies in BOTH edit and readOnly on every surface.
+   * `BlockEditor` lifts the cap per-block via an ephemeral expand toggle
+   * (a scoped `<style>` override — NEVER a class on this ProseMirror-managed
+   * element; see CodeToggle in BlockEditor.tsx).
+   */
+  line-height: 1.5;
+  max-height: calc(20 * 1.5em + 49px);
+  overflow-y: auto;
+  /*
+   * Room for the line-number gutter (#1146 follow-up): the numbers are a
+   * React overlay OUTSIDE the ProseMirror DOM (`.bn-code-gutter` below); a
+   * static stylesheet rule — never a DOM write on this PM-managed element —
+   * shifts the code right so it starts clear of the 44px gutter strip.
+   */
+  padding-left: 52px;
+}
+/* Language-selector dropdown — BlockNote core hides it (opacity:0, white text)
+ * and only fades it to 0.5 on hover, which is invisible/unreadable on a light
+ * panel. Force readable contrast in both themes. Also shift it right of the
+ * line-number gutter (core puts it at left: 18px, which would sit ON the
+ * gutter strip) — same full path/specificity as the core rule, loaded later. */
+.bn-block-content[data-content-type='codeBlock'] > div > select {
+  left: 52px;
+}
+.bn-block-content[data-content-type='codeBlock'] select {
+  color: var(--foreground) !important;
+  opacity: 0.65 !important;
+  background: transparent;
+}
+.bn-block-content[data-content-type='codeBlock']:hover select,
+.bn-block-content[data-content-type='codeBlock'] select:focus {
+  opacity: 1 !important;
+}
+.dark .bn-block-content[data-content-type='codeBlock'] select {
+  color: #e6edf3 !important;
+}
+/* Force readable token colours per theme, robustly: prefer shiki's per-theme CSS
+ * variable if BlockNote emits one, else fall back to the panel foreground
+ * (monochrome but always legible). The `!important` beats shiki's inline per-span
+ * color, so a light panel can never end up with light-on-light tokens. */
+.bn-block-content[data-content-type='codeBlock'] pre span {
+  color: var(--shiki-light, var(--foreground)) !important;
+}
+/* Dark mode: restore the deep panel + dark-theme token colours. */
+.dark .bn-block-content[data-content-type='codeBlock'],
+.dark .bn-block-content[data-content-type='codeBlock'] > pre {
+  background-color: #0d1117;
+  color: #e6edf3;
+}
+.dark .bn-block-content[data-content-type='codeBlock'] pre span {
+  color: var(--shiki-dark, #e6edf3) !important;
+}
+
+/*
+ * Read-only message body (MessageItem renders the editor in readOnly mode so
+ * callouts / mermaid / tables render identically to edit mode). Strip the
+ * editor's authoring gutter + padding so the content sits flush under the
+ * author row, and remove the hover side-menu space.
+ */
+.bn-message-readonly .bn-editor {
+  padding-inline: 0;
+  padding-block: 0;
+  /* Activity-row comments render inline (no card) — strip any editor chrome. */
+  border: none;
+  background: transparent;
+}
+.bn-message-readonly,
+.bn-message-readonly .bn-container {
+  border: none;
+  background: transparent;
+}
+.bn-message-readonly .bn-block-outer:first-child .bn-block-content {
+  padding-top: 0;
+}
+
+/*
+ * Compact / inline surfaces (ticket + thread descriptions, chat composer): the
+ * default BlockNote editor reserves a wide left gutter for its ＋/drag side menu.
+ * We moved that menu to a drag-only handle in the RIGHT gutter (see
+ * `compactSideMenu`), so the reserved left space reads as dead air pushing the
+ * text away from the field's left edge. Collapse the inline gutter to a hair so
+ * content sits flush-left under the field label; the floating drag handle still
+ * appears on hover in the right gutter (it floats outside the content box).
+ */
+.bn-compact-gutter .bn-editor {
+  padding-inline: 6px;
+}
+
+/*
+ * Compact composer surface colour: BlockNote's stock dark palette paints the
+ * editor a lighter grey than our --background (#0a0a0a), so in dark mode the
+ * composer read as a mismatched panel inside the field (in light mode both are
+ * white, so it looked fine). Bind BlockNote's editor surface variables to the
+ * app's semantic tokens so the composer matches its container in BOTH themes.
+ */
+.bn-compact-gutter .bn-container {
+  --bn-colors-editor-background: var(--background);
+  --bn-colors-editor-text: var(--foreground);
+  --bn-colors-side-menu: var(--muted-foreground);
+}
+
+/*
+ * Callout block — frame the whole BlockNote block (header content + any nested
+ * child blocks) so an image/list/code indented under the callout renders INSIDE
+ * the coloured box. BlockNote custom blocks can't host block children directly,
+ * but every block can have `children` (Tab-nested) rendered in a sibling
+ * `.bn-block-group`; moving the frame from the inner render to the block
+ * container makes that group sit inside the frame. Applies in edit + readOnly.
+ */
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type='callout']) {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 12px;
+  margin: 4px 0;
+}
+/* Nested children: drop BlockNote's nesting indent, align under the header text. */
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type='callout'])
+  > .bn-block-group {
+  margin-left: 0 !important;
+  padding-left: 28px;
+}
+/*
+ * Per-type tints (mirror the previous inline Tailwind `bg-x/10 border-x/30`).
+ * The full-path `:has()` argument matches the default frame rule's specificity
+ * AND comes later, so `border-color` reliably wins over the default's `border`
+ * shorthand (otherwise only `background` would override).
+ */
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type='callout'] > .bn-callout-frame[data-callout-type='note']) {
+  border-color: color-mix(in srgb, var(--purple) 30%, transparent);
+  background: color-mix(in srgb, var(--purple) 10%, transparent);
+}
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type='callout'] > .bn-callout-frame[data-callout-type='info']) {
+  border-color: color-mix(in srgb, var(--info) 30%, transparent);
+  background: color-mix(in srgb, var(--info) 10%, transparent);
+}
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type='callout'] > .bn-callout-frame[data-callout-type='tip']) {
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+}
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type='callout'] > .bn-callout-frame[data-callout-type='warning']) {
+  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+}
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type='callout'] > .bn-callout-frame[data-callout-type='error']) {
+  border-color: color-mix(in srgb, var(--destructive) 30%, transparent);
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+}
+
+/*
+ * Code block expand/collapse toggle (CR #1146 Phase 2). The buttons live in
+ * a React overlay OUTSIDE the ProseMirror DOM (`BlockEditor` positions them
+ * over each over-tall code block's top-right corner) — the editor wrapper is
+ * the positioning context. BlockNote's language selector sits top-LEFT
+ * (core CSS: top 8px / left 18px), so top-right is collision-free.
+ */
+.bn-editor-shell {
+  position: relative;
+}
+.bn-code-toggle-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bn-code-expand-btn {
+  position: absolute;
+  pointer-events: auto;
+  z-index: 5;
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  opacity: 0.85;
+}
+.bn-code-expand-btn:hover {
+  opacity: 1;
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+/*
+ * Code block line-number gutter (#1146 follow-up). React overlay OUTSIDE the
+ * ProseMirror DOM, positioned over each code block pre's left edge (the pre
+ * gets `padding-left: 52px` above so code starts clear of the 44px strip).
+ * `pointer-events: none` lets clicks fall through to the editor;
+ * `user-select: none` + living outside the contenteditable guarantees
+ * copying code never includes the numbers. Opaque background masks code
+ * sliding underneath during horizontal scroll (the pre is no-wrap +
+ * `overflow-x: auto`); the inner column is translated to mirror the pre's
+ * vertical scroll (the #1146 20-line cap).
+ */
+.bn-code-gutter-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bn-code-gutter {
+  position: absolute;
+  width: 44px;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  background: var(--muted);
+  border-right: 1px solid var(--border);
+  border-radius: 8px 0 0 8px;
+  z-index: 1;
+}
+.dark .bn-code-gutter {
+  /* Match the dark code panel above (same hardcoded GitHub-dark hex). */
+  background: #0d1117;
+}
+.bn-code-gutter-inner {
+  white-space: pre;
+  text-align: right;
+  padding-right: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  will-change: transform;
+}
+
+/*
+ * Per-TABLE decoration config (CR #1147, reworked). `BlockEditor`'s
+ * decoration pass (`syncTableBorderDecorations`) stamps `data-sh-border` +
+ * `--sh-table-border-{style,width,color}` inline vars and `data-sh-align`
+ * on the table's `.bn-block-content` — one stamp at the container, and the
+ * rules below CASCADE it to the elements that actually paint: an HTML
+ * table's visible grid is drawn by the td/th borders under
+ * `border-collapse: collapse` (prosemirror-tables), NOT by the container.
+ * Everything is removed when the props equal the defaults, so stock tables
+ * keep BlockNote's own 1px #ddd grid (stock rule:
+ * `.bn-editor [data-content-type="table"] th/td` in core editor.css —
+ * (0,2,1); every rule below carries an extra attribute selector, (0,3,1)+,
+ * so it wins in both edit and read-only regardless of stylesheet order).
+ *
+ * 'none' semantics (per the ticket): while EDITING show a light dotted
+ * guide so the table stays discoverable; in read-only render no border at
+ * all. Keyed off the editor's `contenteditable` state — the same signal
+ * BlockNote core uses (`.bn-editor[contenteditable=...]`). The extra
+ * attribute selector also out-specifies the generic rule below.
+ */
+.bn-editor [data-content-type='table'][data-sh-border] table,
+.bn-editor [data-content-type='table'][data-sh-border] th,
+.bn-editor [data-content-type='table'][data-sh-border] td {
+  border: var(--sh-table-border-width, 1px) var(--sh-table-border-style, solid)
+    var(--sh-table-border-color, var(--border));
+}
+.bn-editor[contenteditable='true'] [data-content-type='table'][data-sh-border='none'] table,
+.bn-editor[contenteditable='true'] [data-content-type='table'][data-sh-border='none'] th,
+.bn-editor[contenteditable='true'] [data-content-type='table'][data-sh-border='none'] td {
+  border: 1px dotted var(--border);
+}
+.bn-editor[contenteditable='false'] [data-content-type='table'][data-sh-border='none'] table,
+.bn-editor[contenteditable='false'] [data-content-type='table'][data-sh-border='none'] th,
+.bn-editor[contenteditable='false'] [data-content-type='table'][data-sh-border='none'] td {
+  border: none;
+}
+
+/*
+ * Per-table alignment (CR #1147 addition). The inner `table` element is
+ * `width: auto !important` (core editor.css) inside the block-level
+ * `.tableWrapper-inner`, so auto margins align it when it is narrower than
+ * the editor. Default 'left' renders no attribute (today's look).
+ */
+.bn-editor [data-content-type='table'][data-sh-align='center'] table {
+  margin-inline: auto;
+}
+.bn-editor [data-content-type='table'][data-sh-align='right'] table {
+  margin-left: auto;
+}
+
+/*
+ * Per-table settings menu button (CR #1147 rework) — anchored to the
+ * table's top-right corner from the overlay (outside the ProseMirror DOM,
+ * same pattern as the code expand button). Hidden until the table is
+ * hovered / the caret is inside it / the menu is open (data-visible is set
+ * by BlockEditor). While hidden it also ignores pointer events so there is
+ * no invisible click target.
+ */
+.bn-table-menu-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bn-table-menu-btn {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.bn-table-menu-btn[data-visible='true'] {
+  pointer-events: auto;
+  opacity: 1;
+}
+.bn-table-menu-btn:hover {
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+/* ── kb-editor package: replaced Tailwind utilities on the Mantine menus/popovers ── */
+.bn-sh-callout-menu { min-width: 9rem; }
+.bn-sh-file-menu { min-width: 14rem; }
+.bn-sh-table-popover { width: 16rem; padding: 0.75rem; }
+.bn-sh-caption-popover { width: 16rem; padding: 0.5rem; }
+.bn-file-asset-fallback { white-space: pre; padding: 0.75rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

@@ -7,6 +7,7 @@ Monorepo for the SparkHub partner-app client SDKs.
 | [`@sparkhub/sdk`](./packages/sdk) | Framework-agnostic OAuth client + authenticated `fetch` for partner apps | [packages/sdk](./packages/sdk) |
 | [`@sparkhub/react`](./packages/react) | React Provider + hooks + components built on top of `@sparkhub/sdk` | [packages/react](./packages/react) |
 | [`@sparkhub/kb-viewer`](./packages/kb-viewer) | Read-only BlockNote viewer for SparkHub public-KB `content` (standalone — no OAuth needed) | [packages/kb-viewer](./packages/kb-viewer) |
+| [`@sparkhub/kb-editor`](./packages/kb-editor) | The BlockNote **editor** SparkHub's own KB uses — author `content` block arrays for `kb_create_page` / `kb_update_page` (+ a `/pure` server-safe entry: markdown⇄blocks, block ops, content zod) | [packages/kb-editor](./packages/kb-editor) |
 
 ## Why two packages
 
