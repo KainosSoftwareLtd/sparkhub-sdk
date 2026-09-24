@@ -5,6 +5,9 @@
  *   - Stable client instance for the Provider's lifetime
  *   - Automatic OAuth callback handling on initial mount (detects `?code=...`
  *     or `?error=...` in the URL and calls `client.handleCallback()`)
+ *   - Silent session resume on mount: a stored session whose 5-min access
+ *     token lapsed is REFRESHED (`client.ensureSession()`), not sent back
+ *     through authorize + consent — "signed in" means a valid refresh token
  *   - `me` data fetched + refreshed when auth state changes
  *   - State updates on cross-tab token refresh (via the SDK's `onTokenRefresh`
  *     callback — partner can still supply their own; we wrap it).
@@ -94,6 +97,13 @@ export function SparkhubProvider({ config, children }: SparkhubProviderProps) {
       try {
         if (hasOAuthParams) {
           await client.handleCallback();
+          setAuthVersion((v) => v + 1);
+        } else if (client.isAuthenticated()) {
+          // Returning user: rotate a lapsed access token now (a rejected
+          // refresh clears the session → isAuthenticated flips to false and
+          // the app shows its sign-in). A transient failure keeps the
+          // session; the next fetch retries.
+          await client.ensureSession();
           setAuthVersion((v) => v + 1);
         }
       } catch (err) {

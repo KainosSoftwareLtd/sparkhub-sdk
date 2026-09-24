@@ -55,7 +55,7 @@ describe('client.isAuthenticated / accessToken', () => {
     expect(client.accessToken()).toBeNull();
   });
 
-  it('returns false for an expired session', () => {
+  it('an expired ACCESS token with a live refresh token is still signed in (auth-churn 2.2)', () => {
     window.sessionStorage.setItem(
       'sparkhub_partner_app_session',
       JSON.stringify({
@@ -68,8 +68,24 @@ describe('client.isAuthenticated / accessToken', () => {
       }),
     );
     const client = createSparkhubClient(VALID_OPTS);
-    expect(client.isAuthenticated()).toBe(false);
+    expect(client.isAuthenticated()).toBe(true);
     expect(client.accessToken()).toBeNull();
+  });
+
+  it('an expired REFRESH token is signed out', () => {
+    window.sessionStorage.setItem(
+      'sparkhub_partner_app_session',
+      JSON.stringify({
+        accessToken: 'expired',
+        accessTokenExpiresAt: Date.now() - 1000,
+        refreshToken: 'r',
+        refreshTokenExpiresAt: Date.now() - 1,
+        scopes: [],
+        clientId: 'papp_test_abc',
+      }),
+    );
+    const client = createSparkhubClient(VALID_OPTS);
+    expect(client.isAuthenticated()).toBe(false);
   });
 
   it('returns true and the access token for a fresh session', () => {

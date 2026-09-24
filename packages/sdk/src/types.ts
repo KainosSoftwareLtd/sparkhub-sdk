@@ -95,7 +95,14 @@ export interface PartnerAppMe {
 
 export interface TokenResponse {
   access_token: string;
-  refresh_token: string;
+  /**
+   * Always present on the code exchange and on a normal rotation. ABSENT on
+   * the server's concurrent-refresh grace answer (a refresh token another tab
+   * rotated seconds ago): that response carries a fresh access token only and
+   * the client keeps its refresh token (it receives the rotated one from the
+   * peer tab's broadcast).
+   */
+  refresh_token?: string;
   token_type: 'Bearer';
   /** Access token TTL in seconds. */
   expires_in: number;
