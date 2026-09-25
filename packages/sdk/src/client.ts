@@ -24,6 +24,7 @@ import { generatePkcePair, generateRandomBase64Url } from './pkce.js';
 import {
   PkceStore,
   SessionStore,
+  shouldAdoptPeerRecord,
   type PkceRecord,
   type SessionRecord,
 } from './storage.js';
@@ -32,6 +33,13 @@ import { createDataApi, type DataApi } from './data-client.js';
 
 const DEFAULT_BASE = 'https://sparkhub.studio';
 const PKCE_TTL_MS = 5 * 60 * 1000;
+/** Treat an access token this close to expiry as lapsed (clock skew + request time). */
+const ACCESS_SKEW_MS = 10_000;
+
+/** A refresh the server could not answer (network / 5xx) — the session is KEPT. */
+class TransientRefreshError extends Error {
+  override name = 'TransientRefreshError';
+}
 
 class SparkhubClient {
   private readonly clientId: string;
@@ -72,6 +80,14 @@ class SparkhubClient {
       clientId: this.clientId,
       onPeerEvent: (event) => {
         if (event.type !== 'refreshed') return;
+        // A peer rotated. With sessionStorage (the default, and what a
+        // duplicated tab copies) its storage is not ours: adopt the rotated
+        // pair it sent when it is the same chain and newer — otherwise this
+        // tab would later present the consumed refresh token (reuse → the
+        // server revokes the chain for every tab).
+        if (event.record && shouldAdoptPeerRecord(this.session.read(), event.record)) {
+          this.session.write(event.record);
+        }
         const fresh = this.session.read();
         if (!fresh) return;
         this.fireOnTokenRefresh(fresh, 'peer');
@@ -83,17 +99,52 @@ class SparkhubClient {
     );
   }
 
+  /**
+   * Signed in = a REFRESH token that has not expired (auth-churn 2.2). The
+   * 5-minute access token lapsing is routine — `fetch()` / `ensureSession()`
+   * rotate it silently. Treating a lapsed access token as "signed out" sent
+   * every returning user through a full authorize + consent + a NEW chain.
+   */
   isAuthenticated(): boolean {
     const record = this.session.read();
     if (!record) return false;
-    return record.accessTokenExpiresAt > Date.now();
+    return record.refreshTokenExpiresAt > Date.now();
   }
 
+  /** The current access token, or null when there is none or it has lapsed (see `ensureSession`). */
   accessToken(): string | null {
     const record = this.session.read();
     if (!record) return null;
     if (record.accessTokenExpiresAt <= Date.now()) return null;
     return record.accessToken;
+  }
+
+  /**
+   * Make sure the session has a usable access token, refreshing it when it
+   * lapsed. Resolves the session, or `null` when there is no session or the
+   * server rejected the refresh (the session is then cleared — sign in
+   * again). Rejects only on a TRANSIENT failure (network / 5xx), keeping the
+   * session so a later call can retry. Call on app mount; the React provider
+   * does.
+   */
+  async ensureSession(): Promise<SessionRecord | null> {
+    const record = this.session.read();
+    if (!record) return null;
+    if (record.accessTokenExpiresAt - ACCESS_SKEW_MS > Date.now()) return record;
+    if (record.refreshTokenExpiresAt <= Date.now()) {
+      this.session.clear();
+      return null;
+    }
+    try {
+      const refreshed = await this.refresh();
+      if (!refreshed) this.session.clear();
+      return refreshed;
+    } catch (err) {
+      if (err instanceof TransientRefreshError) {
+        throw asSparkhubError('refresh_unavailable', err.message);
+      }
+      throw err;
+    }
   }
 
   async authorize(): Promise<never> {
@@ -171,8 +222,10 @@ class SparkhubClient {
   }
 
   async fetch(path: string, init: RequestInit = {}): Promise<Response> {
-    const record = this.session.read();
-    if (!record) throw asSparkhubError('not_authenticated', 'no session — call authorize()');
+    if (!this.session.read()) throw asSparkhubError('not_authenticated', 'no session — call authorize()');
+    // Rotate a lapsed access token BEFORE the call instead of spending a 401.
+    const record = await this.ensureSession();
+    if (!record) throw asSparkhubError('refresh_failed', 'session expired');
 
     const headers = new Headers(init.headers);
     headers.set('Authorization', `Bearer ${record.accessToken}`);
@@ -185,7 +238,16 @@ class SparkhubClient {
     if (response.status !== 401) return response;
 
     // 401 — try a refresh once, then retry
-    const refreshed = await this.refresh();
+    let refreshed: SessionRecord | null;
+    try {
+      refreshed = await this.refresh();
+    } catch (err) {
+      if (err instanceof TransientRefreshError) {
+        // Server unreachable / 5xx: keep the session, surface the 401.
+        return response;
+      }
+      throw err;
+    }
     if (!refreshed) {
       // Refresh failed — chain dead, force re-auth
       this.session.clear();
@@ -336,6 +398,12 @@ class SparkhubClient {
     return (await response.json()) as TokenResponse;
   }
 
+  /**
+   * Rotate the refresh token (single-flight in-tab, Web-Locks-serialised
+   * across tabs). Resolves the new session, `null` when the server REJECTED
+   * the refresh (4xx — chain dead / revoked), and throws
+   * `TransientRefreshError` when it could not answer (network / 5xx).
+   */
   private async refresh(): Promise<SessionRecord | null> {
     if (this.refreshInFlight) return this.refreshInFlight;
 
@@ -349,9 +417,13 @@ class SparkhubClient {
 
         return await this.coordinator.withLock(async () => {
           // Inside the lock — re-read storage. A peer tab may have already
-          // refreshed and written new tokens before we acquired the lock.
+          // refreshed and written (or broadcast) new tokens before we got here.
           const current = this.session.read();
-          if (current && current.accessToken !== staleAccessToken) {
+          if (
+            current &&
+            current.accessToken !== staleAccessToken &&
+            current.accessTokenExpiresAt - ACCESS_SKEW_MS > Date.now()
+          ) {
             this.fireOnTokenRefresh(current, 'peer');
             return current;
           }
@@ -360,26 +432,42 @@ class SparkhubClient {
           if (!record) return null;
           if (record.refreshTokenExpiresAt <= Date.now()) return null;
 
-          const response = await window.fetch(`${this.base}/oauth/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              grant_type: 'refresh_token',
-              refresh_token: record.refreshToken,
-              client_id: this.clientId,
-            }),
-          });
+          let response: Response;
+          try {
+            response = await window.fetch(`${this.base}/oauth/token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: record.refreshToken,
+                client_id: this.clientId,
+              }),
+            });
+          } catch (err) {
+            throw new TransientRefreshError(
+              `token refresh could not reach SparkHub (${err instanceof Error ? err.message : String(err)})`,
+            );
+          }
+          if (response.status >= 500 || response.status === 429) {
+            throw new TransientRefreshError(`token refresh returned ${response.status}`);
+          }
           if (!response.ok) return null;
 
           const tokens = (await response.json()) as TokenResponse;
-          const next = sessionRecordFromTokens(this.clientId, tokens, record.scopes);
+          const next = tokens.refresh_token
+            ? sessionRecordFromTokens(this.clientId, tokens, record.scopes)
+            : // Concurrent-refresh grace: a fresh access token only. Keep our
+              // refresh token — the tab that rotated it broadcasts the new one.
+              {
+                ...record,
+                accessToken: tokens.access_token,
+                accessTokenExpiresAt: Date.now() + tokens.expires_in * 1000,
+              };
           this.session.write(next);
           this.fireOnTokenRefresh(next, 'local');
-          this.coordinator.broadcast({ type: 'refreshed' });
+          if (tokens.refresh_token) this.coordinator.broadcast({ type: 'refreshed', record: next });
           return next;
         });
-      } catch {
-        return null;
       } finally {
         this.refreshInFlight = null;
       }
@@ -422,6 +510,9 @@ function sessionRecordFromTokens(
   // `refresh_expires_in`); otherwise fall back to the partner-app audience's
   // configured fixed TTL of 24h.
   const refreshTtlSeconds = tokens.refresh_expires_in ?? DEFAULT_REFRESH_TTL_SECONDS;
+  if (!tokens.refresh_token) {
+    throw asSparkhubError('invalid_token_response', 'token response carried no refresh_token');
+  }
   return {
     accessToken: tokens.access_token,
     accessTokenExpiresAt: now + tokens.expires_in * 1000,
@@ -429,6 +520,7 @@ function sessionRecordFromTokens(
     refreshTokenExpiresAt: now + refreshTtlSeconds * 1000,
     scopes,
     clientId,
+    refreshIssuedAt: now,
   };
 }
 

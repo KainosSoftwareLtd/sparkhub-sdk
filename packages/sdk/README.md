@@ -53,11 +53,12 @@ await client.logout();
 
 | Method | Behavior |
 |---|---|
-| `isAuthenticated()` | Synchronous check — true iff a non-expired access token is in storage. |
+| `isAuthenticated()` | Synchronous check — true iff a non-expired **refresh** token is in storage. A lapsed 5-min access token is routine and rotated silently (see `ensureSession()`), not a sign-out. |
+| `ensureSession()` | Rotates a lapsed access token (call on app mount; `@sparkhub/react`'s provider does). Resolves the session, or `null` when the server rejected the refresh (session cleared → sign in again). Rejects with `refresh_unavailable` on a network / 5xx failure and KEEPS the session. |
 | `accessToken()` | Returns the current access token string (or `null`). Useful for non-`fetch` callers (e.g. `EventSource`). |
 | `authorize()` | Generates PKCE pair, stores verifier + state in `sessionStorage`, redirects to `${sparkhubBase}/oauth/authorize?...` — or to whatever `authorizeRedirect(authorizeUrl)` returns when that option is set (an app whose users always sign in through one federated IdP returns `${base}/api/auth-v2/sso/start?idp=<name>&return=<encoded authorize path>` so SparkHub jumps straight to that IdP and comes back to consent). Never returns. |
 | `handleCallback()` | Reads `?code` + `?state` from current URL, validates state + PKCE, exchanges via `POST /oauth/token`, stores tokens, strips OAuth params from URL via `history.replaceState`. Throws on validation failure. |
-| `fetch(path, init?)` | `fetch` wrapper. Resolves relative paths against `sparkhubBase`. Attaches `Authorization: Bearer <access>`. On `401`: tries refresh once, retries; if refresh fails, clears storage and throws — your app should redirect to `authorize()`. |
+| `fetch(path, init?)` | `fetch` wrapper. Resolves relative paths against `sparkhubBase`. Rotates a lapsed access token before the call, then attaches `Authorization: Bearer <access>`. On `401`: tries refresh once, retries; if refresh fails, clears storage and throws — your app should redirect to `authorize()`. |
 | `me()` | Convenience: `fetch('/api/partner-app/me').then((r) => r.json())`. Throws on non-2xx. |
 | `logout()` | Calls `POST /oauth/revoke` with the refresh token, then clears local storage. Best-effort — succeeds locally even if the network call fails. |
 
@@ -86,6 +87,8 @@ Use `local` only if your UX needs persist-across-restart auth. Note the trade-of
 ## Multi-tab behavior
 
 Tabs of the same partner app coordinate refresh via [Web Locks](https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API) and [BroadcastChannel](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel_API). When multiple tabs hit a 401 simultaneously, only one tab actually calls `/oauth/token`; peer tabs wait at the lock and pick up the rotated tokens from storage. This eliminates the previous failure mode where two tabs racing tripped the server's refresh-reuse-detection and revoked the chain.
+
+**Duplicated tabs with `sessionStorage`** (the default): duplicating a tab copies its `sessionStorage`, so both tabs hold the SAME refresh token but cannot see each other's storage. The tab that rotates broadcasts the new pair on the BroadcastChannel and every peer adopts it — only for the same chain (`{chainId}.` prefix) and only when newer (`refreshIssuedAt`), so a tab signed in as someone else is never switched. For the residual race (both tabs refresh before the broadcast lands) the server answers a refresh token rotated < 20 s ago with an access token only (no refresh token — a replayed stolen token can never obtain a live chain); the SDK keeps its refresh token and picks up the rotated one from the broadcast.
 
 Browsers without Web Locks (Safari < 15.4) fall back to per-tab refresh — the SDK still works, but two-tab races against a brand-new partner-app installation might cost an occasional re-auth. Acceptable for evergreen-browser audiences.
 

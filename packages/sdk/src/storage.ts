@@ -50,6 +50,38 @@ export interface SessionRecord {
   refreshTokenExpiresAt: number;
   scopes: string[];
   clientId: string;
+  /**
+   * When `refreshToken` was issued (epoch ms). Orders two copies of the same
+   * chain across tabs: a peer's record is adopted only when its refresh token
+   * is NEWER than ours. Absent on records written by older SDK versions.
+   */
+  refreshIssuedAt?: number;
+}
+
+/** The chain a refresh token belongs to (`{chainId}.{secret}`), or null. */
+export function chainIdOfRefreshToken(refreshToken: string | undefined): string | null {
+  if (!refreshToken) return null;
+  const idx = refreshToken.indexOf('.');
+  if (idx <= 0) return null;
+  const chainId = refreshToken.slice(0, idx);
+  return chainId.startsWith('chain_') ? chainId : null;
+}
+
+/**
+ * Should this tab adopt a record a PEER tab broadcast after rotating?
+ * Only for the SAME chain (never switch user / org because another tab
+ * signed in differently) and only when the peer's refresh token is newer.
+ * This is what keeps duplicated tabs (which copy `sessionStorage`) from
+ * presenting an already-rotated refresh token — the server treats that as
+ * reuse and revokes the chain.
+ */
+export function shouldAdoptPeerRecord(current: SessionRecord | null, incoming: SessionRecord): boolean {
+  if (!current) return false;
+  if (current.clientId !== incoming.clientId) return false;
+  const chain = chainIdOfRefreshToken(current.refreshToken);
+  if (!chain || chain !== chainIdOfRefreshToken(incoming.refreshToken)) return false;
+  if (incoming.refreshToken === current.refreshToken) return false;
+  return (incoming.refreshIssuedAt ?? 0) > (current.refreshIssuedAt ?? 0);
 }
 
 export interface PkceRecord {

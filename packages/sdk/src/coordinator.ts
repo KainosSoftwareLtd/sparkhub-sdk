@@ -20,14 +20,25 @@
  *   - BroadcastChannel: Chrome 54+, Firefox 38+, Safari 15.4+
  *
  * Older browsers fall back to the previous in-tab dedupe behavior — no
- * cross-tab coordination, but no regression either.
+ * cross-tab coordination, but no regression either. The server keeps a short
+ * JWT-only grace for a refresh token that was rotated seconds ago (two tabs
+ * racing), so the residual race costs one access-token mint, never the chain.
  */
 
 const LOCK_NAME_PREFIX = 'sparkhub_partner_app:';
 const CHANNEL_NAME_PREFIX = 'sparkhub_partner_app:';
 
+import type { SessionRecord } from './storage.js';
+
 export type CoordinatorEvent =
-  | { type: 'refreshed' }
+  /**
+   * `record` = the rotated session. Peers using `sessionStorage` (the default,
+   * and what a DUPLICATED tab copies) cannot see the holder's storage, so the
+   * holder hands them the new pair; each peer adopts it only for the same
+   * chain (`shouldAdoptPeerRecord`). BroadcastChannel is same-origin only —
+   * the same boundary as the Web Storage the tokens already live in.
+   */
+  | { type: 'refreshed'; record?: SessionRecord }
   | { type: 'signed-out' }
   | { type: 'signed-in' };
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **`@sparkhub/sdk`: stay signed in across the 5-min access token (auth-churn 2.2).** `isAuthenticated()` now means "a valid refresh token" (was: "a valid access token", which sent every returning user through authorize + auto-consent + a NEW chain — prod showed 50 authcodes and 0 refreshes). New `ensureSession()` rotates a lapsed access token; `fetch()` rotates before the call instead of spending a 401; a network/5xx refresh failure keeps the session (`refresh_unavailable`) instead of signing out. Duplicated tabs: the rotating tab broadcasts the new pair and same-chain peers adopt it; a JWT-only server grace answer (no `refresh_token`) keeps the stored refresh token. `TokenResponse.refresh_token` is now optional.
+- **`@sparkhub/react`: the provider refreshes a lapsed access token on mount** (`ensureSession()`) instead of rendering signed-out.
+
 - **`@sparkhub/sdk`: `authorizeRedirect` option** — `createSparkhubClient({ authorizeRedirect: (authorizeUrl) => string })` is the last step of `authorize()`: it receives the built `/oauth/authorize?...` URL and returns where the browser goes. Default identity. Lets an app put an identity-provider hop in front of the authorize page (Cortex on prod: `${base}/api/auth-v2/sso/start?idp=Kainos-SSO&return=<authorize path>`), which is the one thing a hand-rolled OAuth helper could do that the SDK could not.
 - `@sparkhub/react` / `@sparkhub/kb-viewer` / `@sparkhub/kb-editor`: version bump only (lockstep).
 
