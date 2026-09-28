@@ -11,7 +11,11 @@
     "build": "npm run build --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "clean": "npm run clean --workspaces --if-present"
+    "clean": "npm run clean --workspaces --if-present",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
+    "verify": "npm run build:ordered && npm run type-check && npm run test",
+    "verify:full": "npm run verify",
+    "build:ordered": "npm -w @sparkhub/sdk run build && npm -w @sparkhub/react run build && npm -w @sparkhub/kb-viewer run build && npm -w @sparkhub/kb-editor run build"
   },
   "repository": {
     "type": "git",

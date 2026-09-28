@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# SparkHub fleet standard (identical in every repo) — the checks run HERE, on
+# the laptop, before anything leaves it. GitHub CI is only a safety net.
+#
+#   npm run verify       gates + type-check + lint (~30 s warm) — this hook
+#   npm run verify:full  verify + the unit suites + smokes — once per round
+#
+# Installed by `npm install` (the `prepare` script sets core.hooksPath=.githooks).
+# Bypass once: SKIP_VERIFY=1 git push   (or git push --no-verify)
+
+if [ "${SKIP_VERIFY:-0}" = "1" ]; then
+  echo "pre-push: SKIP_VERIFY=1 — not running npm run verify" >&2
+  exit 0
+fi
+
+# A push of tags only (a release tag) carries no new code: the commit it names
+# was verified when it was pushed.
+code=0
+while read -r local_ref _local_sha _remote_ref _remote_sha; do
+  case "$local_ref" in
+    refs/tags/*) ;;
+    *) code=1 ;;
+  esac
+done
+[ "$code" = "0" ] && exit 0
+
+echo "pre-push: npm run verify  (bypass once: SKIP_VERIFY=1 git push)" >&2
+exec npm run --silent verify

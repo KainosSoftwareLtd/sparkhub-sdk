@@ -1,0 +1,50 @@
+name: CI
+
+# SparkHub fleet standard (the same file in every app repo) — a SAFETY NET, not
+# the gate. The checks run on the laptop: `npm run verify` before every push
+# (.githooks/pre-push) and `npm run verify:full` once per tested round. This
+# job re-runs `verify:full` on a clean install, so a push that skipped the hook
+# (SKIP_VERIFY=1 / --no-verify) or a stale local node_modules still shows up.
+#
+# ONE job, ONE install. Not a required status check: `main` takes direct pushes
+# (decided 2026-09-28 — one developer, heavy development). Runs on a push to
+# main, on a PR if one is opened, and by hand.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push supersedes a run still in flight — the latest main is the one
+# worth checking.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# The private @kainossoftwareltd/* packages resolve from GitHub Packages; the
+# automatic token reads them (each package grants this repo Actions access).
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: npm run verify:full
+        run: npm run verify:full
