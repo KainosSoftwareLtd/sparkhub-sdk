@@ -53,9 +53,9 @@
     "url": "https://github.com/KainosSoftwareLtd/sparkhub-sdk/issues"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^2.1.0",
+    "@vitest/coverage-v8": "^4.1.12",
     "jsdom": "^25.0.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "vitest": "^4.1.12"
   }
 }
